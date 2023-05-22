@@ -1,9 +1,17 @@
-use std::hash::{Hash, Hasher};
+use std::{
+    collections::HashMap,
+    hash::{Hash, Hasher},
+};
+
+pub struct IR {
+    pub start_label: Label,
+    pub instructions: HashMap<Label, Vec<Instruction>>,
+}
 
 #[derive(Debug, Clone)]
 pub struct Label {
-    name: String,
-    address: MemoryAddress,
+    pub name: String,
+    pub address: MemoryAddress,
 }
 
 impl Label {
@@ -63,7 +71,7 @@ pub enum Instruction {
 
 #[derive(Debug, Clone, Copy)]
 pub struct RegisterAddress(pub u8);
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MemoryAddress(pub u16);
 #[derive(Debug, Clone, Copy)]
 pub struct Constant(pub u16);

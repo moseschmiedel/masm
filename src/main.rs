@@ -21,6 +21,6 @@ fn main() {
         eprintln!("Parser: {err}");
         process::exit(1);
     });
-    println!("{:?}", parsed.keys());
-    println!("{:?}", parsed.values());
+    println!("{:?}", parsed.instructions.keys());
+    println!("{:?}", parsed.instructions.values());
 }

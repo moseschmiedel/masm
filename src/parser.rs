@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::io;
 use std::slice::Iter;
 
 use crate::ir;
@@ -78,33 +77,49 @@ impl std::fmt::Debug for ParserError {
 
 impl std::error::Error for ParserError {}
 
-pub fn parser(
-    keywords: Vec<Keyword>,
-) -> Result<HashMap<ir::Label, Vec<ir::Instruction>>, ParserError> {
+pub fn parser(keywords: Vec<Keyword>) -> Result<ir::IR, ParserError> {
     let mut parsed: HashMap<ir::Label, Vec<ir::Instruction>> = HashMap::with_capacity(10);
     let mut iter = keywords.iter();
-    let mut last_label: ir::Label = ir::Label::new("main", 0);
+    let default_label = ir::Label::new("main", 0);
+    let mut last_label: Option<ir::Label> = None;
+    let mut start_label: Option<ir::Label> = None;
 
     loop {
         if let Some(next_keyword) = iter.next() {
             if let Some(label) = try_parse_label(next_keyword) {
                 parsed.insert(label.clone(), Vec::new());
-                last_label = label;
+                if start_label.is_none() {
+                    start_label = Some(label.clone());
+                }
+                last_label = Some(label);
             } else {
                 match try_parse_instruction(next_keyword, &mut iter) {
                     Ok(instruction) => {
-                        if let Some(vec) = parsed.get_mut(&last_label) {
+                        if let Some(vec) =
+                            parsed.get_mut(last_label.as_ref().unwrap_or(&default_label))
+                        {
                             vec.push(instruction);
                         } else {
-                            parsed.insert(last_label.clone(), vec![instruction]);
+                            parsed.insert(
+                                last_label.clone().unwrap_or(default_label.clone()),
+                                vec![instruction],
+                            );
                         }
                     }
-                    Err(ParserError::EndOfStream) => return Ok(parsed),
+                    Err(ParserError::EndOfStream) => {
+                        return Ok(ir::IR {
+                            start_label: start_label.unwrap_or(default_label),
+                            instructions: parsed,
+                        })
+                    }
                     Err(parser_error) => return Err(parser_error),
                 }
             }
         } else {
-            return Ok(parsed);
+            return Ok(ir::IR {
+                start_label: start_label.unwrap_or(default_label),
+                instructions: parsed,
+            });
         }
     }
 }
