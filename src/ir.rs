@@ -1,11 +1,40 @@
-pub enum Command {
+use std::hash::{Hash, Hasher};
+
+#[derive(Debug, Clone)]
+pub struct Label {
+    name: String,
+    address: MemoryAddress,
+}
+
+impl Label {
+    pub fn new(name: impl Into<String>, address: u16) -> Label {
+        Label {
+            name: name.into(),
+            address: MemoryAddress(address),
+        }
+    }
+}
+
+impl Hash for Label {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.name.hash(state);
+    }
+}
+
+impl PartialEq for Label {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
+}
+
+impl Eq for Label {}
+
+#[derive(Debug)]
+pub enum Instruction {
     EmptyLine,
-    Label {
-        label: String,
-        address: MemoryAddress,
-    },
     Move(UnaryExpression),
     Load {
+        address: RegisterAddress,
         source: LoadSource,
     },
     StoreRAM,
@@ -32,29 +61,45 @@ pub enum Command {
     Negate(UnaryExpression),
 }
 
-pub struct RegisterAddress(u8);
+#[derive(Debug, Clone, Copy)]
+pub struct RegisterAddress(pub u8);
+#[derive(Debug, Clone, Copy)]
 pub struct MemoryAddress(pub u16);
+#[derive(Debug, Clone, Copy)]
+pub struct Constant(pub u16);
 
+#[derive(Debug, Clone, Copy)]
+enum Source {
+    Register(RegisterAddress),
+    Memory(MemoryAddress),
+    Constant(Constant),
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct Register {
     adress: RegisterAddress,
 }
 
+#[derive(Debug)]
 pub struct UnaryExpression {
     target: Register,
     source_a: Register,
 }
 
+#[derive(Debug)]
 pub struct BinaryExpression {
     target: Register,
     source_a: Register,
     source_b: Register,
 }
 
+#[derive(Debug)]
 pub struct BinaryStatement {
     source_a: Register,
     source_b: Register,
 }
 
+#[derive(Debug)]
 struct TernaryExpression {
     target: Register,
     source_a: Register,
@@ -62,12 +107,14 @@ struct TernaryExpression {
     source_c: Register,
 }
 
+#[derive(Debug)]
 pub enum LoadSource {
     Constant(u16),
     RAM { address: MemoryAddress },
     Pgm,
 }
 
+#[derive(Debug)]
 pub enum JumpCondition {
     True,
     Zero,
