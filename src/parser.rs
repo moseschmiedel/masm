@@ -1,19 +1,16 @@
+use std::collections::HashMap;
 use std::io;
-use std::io::prelude::*;
-use std::{collections::VecDeque, fs::File};
+use std::slice::Iter;
 
-use crate::language::{Command, LoadSource, MemoryAddress};
-
-pub struct Parser {
-    file: File,
-}
+use crate::ir;
+use crate::lexer::{Keyword, LineNumber};
 
 pub enum ParserError {
+    EndOfStream,
     UnknownComand {
         command: String,
         line_number: u16,
     },
-    IoError(io::Error),
     MissingArgument {
         command: String,
         arg_name: String,
@@ -25,51 +22,50 @@ pub enum ParserError {
         arg_value: String,
         line_number: u16,
     },
+    ExpectedFound {
+        expected: String,
+        found: String,
+        line_number: u16,
+    },
 }
 
 impl std::fmt::Display for ParserError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self {
+            ParserError::EndOfStream => write!(f, "Reached end of keyword stream"),
             ParserError::UnknownComand {
                 command,
                 line_number,
-            } => {
-                write!(
-                    f,
-                    "Could not parse string: '{}' at line {}",
-                    command, line_number
-                )?;
-                Ok(())
-            }
-            ParserError::IoError(io_error) => {
-                write!(f, "IO Error while parsing: {}", io_error)?;
-                Ok(())
-            }
+            } => write!(f, "Unknown command: '{}' at line {}", command, line_number),
+
             ParserError::MissingArgument {
                 command,
                 arg_name,
                 line_number,
-            } => {
-                write!(
-                    f,
-                    "Missing argument '{}' in command '{}' at line {}",
-                    arg_name, command, line_number
-                )?;
-                Ok(())
-            }
+            } => write!(
+                f,
+                "Missing argument '{}' in command '{}' at line {}",
+                arg_name, command, line_number
+            ),
             ParserError::CouldNotParseArgument {
                 command,
                 arg_name,
                 arg_value,
                 line_number,
-            } => {
-                write!(
-                    f,
-                    "Invalid value '{}' for argument '{}' in command '{}' at line {}",
-                    arg_value, arg_name, command, line_number
-                )?;
-                Ok(())
-            }
+            } => write!(
+                f,
+                "Invalid value '{}' for argument '{}' in command '{}' at line {}",
+                arg_value, arg_name, command, line_number
+            ),
+            ParserError::ExpectedFound {
+                expected,
+                found,
+                line_number,
+            } => write!(
+                f,
+                "Expected '{}' found '{}' at line {}",
+                expected, found, line_number
+            ),
         }
     }
 }
@@ -80,74 +76,167 @@ impl std::fmt::Debug for ParserError {
     }
 }
 
-impl From<io::Error> for ParserError {
-    fn from(io_error: io::Error) -> ParserError {
-        ParserError::IoError(io_error)
-    }
-}
-
 impl std::error::Error for ParserError {}
 
-impl Parser {
-    pub fn new(path: &str) -> io::Result<Self> {
-        let file = File::open(path)?;
-        Ok(Parser { file })
-    }
-    pub fn parse(&self) -> Result<Vec<Command>, ParserError> {
-        let reader = io::BufReader::new(&self.file);
-        let mut line_number = 0;
-        let mut parsed: Vec<Command> = Vec::with_capacity(16);
+pub fn parser(
+    keywords: Vec<Keyword>,
+) -> Result<HashMap<ir::Label, Vec<ir::Instruction>>, ParserError> {
+    let mut parsed: HashMap<ir::Label, Vec<ir::Instruction>> = HashMap::with_capacity(10);
+    let mut iter = keywords.iter();
+    let mut last_label: ir::Label = ir::Label::new("main", 0);
 
-        for line in reader.lines() {
-            parsed.push(parse_line(line?, line_number)?);
-            line_number += 1;
+    loop {
+        if let Some(next_keyword) = iter.next() {
+            if let Some(label) = try_parse_label(next_keyword) {
+                parsed.insert(label.clone(), Vec::new());
+                last_label = label;
+            } else {
+                match try_parse_instruction(next_keyword, &mut iter) {
+                    Ok(instruction) => {
+                        if let Some(vec) = parsed.get_mut(&last_label) {
+                            vec.push(instruction);
+                        } else {
+                            parsed.insert(last_label.clone(), vec![instruction]);
+                        }
+                    }
+                    Err(ParserError::EndOfStream) => return Ok(parsed),
+                    Err(parser_error) => return Err(parser_error),
+                }
+            }
+        } else {
+            return Ok(parsed);
         }
-
-        Ok(parsed)
     }
 }
 
-fn parse_line(line: String, line_number: u16) -> Result<Command, ParserError> {
-    // starts with 4 spaces -> normal command
-
-    if let Some(command_line) = line.strip_prefix("    ") {
-        let mut args: VecDeque<&str> = command_line.split(" ").collect();
-        let command = args.pop_front().unwrap_or("");
-        return match command {
-            "" => Ok(Command::EmptyLine),
-            "ldc" => {
-                let constant = args.pop_front().ok_or(ParserError::MissingArgument {
-                    command: String::from("ldc"),
-                    arg_name: String::from("constant"),
-                    line_number,
-                })?;
-                Ok(Command::Load {
-                    source: LoadSource::Constant(constant.parse::<u16>().map_err(|_| {
-                        ParserError::CouldNotParseArgument {
-                            command: String::from("ldc"),
-                            arg_name: String::from("constant"),
-                            arg_value: String::from(constant),
-                            line_number,
-                        }
-                    })?),
-                })
-            }
-            _ => Err(ParserError::UnknownComand {
-                command: String::from(command),
-                line_number,
-            }),
-        };
+fn try_parse_label(keyword: &Keyword) -> Option<ir::Label> {
+    if let Keyword::Label { name, line_number } = keyword {
+        return Some(ir::Label::new(name, *line_number));
     }
-    // starts with . -> label
-    if let Some(label) = line.strip_prefix(".") {
-        return Ok(Command::Label {
-            label: String::from(label),
-            address: MemoryAddress(line_number),
+    return None;
+}
+
+fn try_parse_instruction(
+    next_keyword: &Keyword,
+    keywords: &mut Iter<Keyword>,
+) -> Result<ir::Instruction, ParserError> {
+    match next_keyword {
+        Keyword::Mmenonic { name, line_number } => match name.as_str() {
+            "ldc" => return try_parse_ldc(keywords, *line_number),
+            unknown => {
+                return Err(ParserError::UnknownComand {
+                    command: unknown.to_string(),
+                    line_number: *line_number,
+                });
+            }
+        },
+        Keyword::Constant { value, line_number } => {
+            return Err(ParserError::UnknownComand {
+                command: format!("{}", value),
+                line_number: *line_number,
+            })
+        }
+        Keyword::MemoryAddress {
+            address,
+            line_number,
+        } => {
+            return Err(ParserError::UnknownComand {
+                command: format!("{}", address),
+                line_number: *line_number,
+            })
+        }
+        Keyword::Label { name, line_number } => {
+            return Err(ParserError::UnknownComand {
+                command: name.to_string(),
+                line_number: *line_number,
+            })
+        }
+        Keyword::RegisterAddress { name, line_number } => {
+            return Err(ParserError::UnknownComand {
+                command: name.to_string(),
+                line_number: *line_number,
+            });
+        }
+    }
+}
+
+/// **ldc** `$TargetRegister` `Constant16`
+fn try_parse_ldc(
+    keywords: &mut Iter<Keyword>,
+    line_number: u16,
+) -> Result<ir::Instruction, ParserError> {
+    if let Some(maybe_target_register) = keywords.next() {
+        let target_register = try_parse_register(maybe_target_register)?;
+        if let Some(maybe_constant) = keywords.next() {
+            let constant = try_parse_constant(maybe_constant)?;
+            return Ok(ir::Instruction::Load {
+                address: target_register,
+                source: ir::LoadSource::Constant(constant.0),
+            });
+        } else {
+            return Err(ParserError::MissingArgument {
+                command: String::from("ldc"),
+                arg_name: String::from("Constant16"),
+                line_number,
+            });
+        }
+    } else {
+        return Err(ParserError::MissingArgument {
+            command: String::from("ldc"),
+            arg_name: String::from("TargetRegister"),
+            line_number,
         });
     }
+}
 
-    Err(ParserError::UnknownComand {
-        command: line,
-        line_number,
-    })
+fn try_parse_constant(keyword: &Keyword) -> Result<ir::Constant, ParserError> {
+    match keyword {
+        &Keyword::Constant { value, .. } => {
+            return Ok(ir::Constant(value));
+        }
+        _ => Err(ParserError::ExpectedFound {
+            expected: String::from("Keyword::Constant"),
+            found: format!("{:?}", keyword),
+            line_number: keyword.get_line_number(),
+        }),
+    }
+}
+
+fn try_parse_register(keyword: &Keyword) -> Result<ir::RegisterAddress, ParserError> {
+    match keyword {
+        Keyword::RegisterAddress { name, line_number } => {
+            let address = match name.as_str() {
+                "regA" => Ok(0b000),
+                "regB" => Ok(0b001),
+                "regC" => Ok(0b010),
+                "regD" => Ok(0b011),
+                "regE" => Ok(0b100),
+                "regF" => Ok(0b101),
+                "regG" => Ok(0b110),
+                "regH" => Ok(0b111),
+                unknown => Err(ParserError::ExpectedFound {
+                    expected: String::from("valid register identifier"),
+                    found: unknown.to_string(),
+                    line_number: *line_number,
+                }),
+            }?;
+            return Ok(ir::RegisterAddress(address));
+        }
+        _ => Err(ParserError::ExpectedFound {
+            expected: String::from("Keyword::RegisterAddress"),
+            found: format!("{:?}", keyword),
+            line_number: keyword.get_line_number(),
+        }),
+    }
+}
+
+fn try_parse_memory_address(keyword: &Keyword) -> Result<ir::MemoryAddress, ParserError> {
+    match keyword {
+        &Keyword::MemoryAddress { address, .. } => Ok(ir::MemoryAddress(address)),
+        _ => Err(ParserError::ExpectedFound {
+            expected: String::from("Keyword::MemoryAddress"),
+            found: format!("{:?}", keyword),
+            line_number: keyword.get_line_number(),
+        }),
+    }
 }

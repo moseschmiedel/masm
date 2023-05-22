@@ -1,13 +1,35 @@
-use std::{collections::VecDeque, fs::File::, io::{self, BufReader}};
+use std::{
+    collections::VecDeque,
+    fs::File,
+    io::{self, BufRead},
+};
 
+pub trait LineNumber {
+    fn get_line_number(&self) -> u16;
+}
+
+#[derive(Debug)]
 pub enum Keyword {
     Mmenonic { name: String, line_number: u16 },
-    RegisterAddress { name: String },
-    MemoryAddress(u16),
-    Constant(u16),
+    RegisterAddress { name: String, line_number: u16 },
+    MemoryAddress { address: u16, line_number: u16 },
+    Constant { value: u16, line_number: u16 },
     Label { name: String, line_number: u16 },
 }
 
+impl LineNumber for Keyword {
+    fn get_line_number(&self) -> u16 {
+        match self {
+            &Keyword::Mmenonic { line_number, .. } => line_number,
+            &Keyword::RegisterAddress { line_number, .. } => line_number,
+            &Keyword::MemoryAddress { line_number, .. } => line_number,
+            &Keyword::Constant { line_number, .. } => line_number,
+            &Keyword::Label { line_number, .. } => line_number,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub enum LexerError {
     InvalidRegisterIdentifier {
         actual: String,
@@ -29,35 +51,96 @@ pub enum LexerError {
         parsed_word: String,
         line_number: u16,
     },
+    IoError(io::Error),
 }
 
-pub fn lexer(path: String) -> Result<Vec<Keyword>, Vec<LexerError>> {
-    let file = File::open(path)?;
+impl std::fmt::Display for LexerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self {
+            LexerError::IoError(io_error) => write!(f, "IO error '{}'", io_error),
+            LexerError::InvalidIdentifier {
+                actual,
+                line_number,
+            } => write!(
+                f,
+                "Invalid identifier '{}' found at line {}",
+                actual, line_number
+            ),
+            LexerError::LabelAfterCommand {
+                label_name,
+                line_number,
+            } => write!(
+                f,
+                "Found illegal label '{}' after command at line {}",
+                label_name, line_number
+            ),
+            LexerError::CommandAfterCommand {
+                command_name,
+                line_number,
+            } => write!(
+                f,
+                "Found illegal command '{}' after command at line {}",
+                command_name, line_number
+            ),
+            LexerError::InvalidRegisterIdentifier {
+                actual,
+                line_number,
+            } => write!(
+                f,
+                "Invalid register identifier '{}' found at line {}",
+                actual, line_number
+            ),
+            LexerError::CouldNotParseMemoryAddress {
+                parsed_word,
+                line_number,
+            } => write!(
+                f,
+                "Could not parse '{}' to MemoryAddress at line {}",
+                parsed_word, line_number
+            ),
+        }
+    }
+}
+
+pub fn lexer(path: impl Into<String>) -> Result<Vec<Keyword>, Vec<LexerError>> {
+    let mut errors: Vec<LexerError> = Vec::new();
+    let file: File =
+        File::open(path.into()).or_else(|io_err| Err(vec![LexerError::IoError(io_err)]))?;
     let reader = io::BufReader::new(file);
     let mut line_number = 0;
     let mut lexed: Vec<Keyword> = Vec::with_capacity(32);
-    let mut errors: Vec<LexerError> = Vec::new();
+    let mut keyword_buffer: Vec<Keyword> = Vec::with_capacity(4);
 
     for line in reader.lines() {
-        match lex_line(line?, line_number) {
-            Ok(keywords) => lexed.append(&mut keywords),
-            Err(error) => errors.push(error),
-        };
-        line_number += 1;
+        match line {
+            Ok(line) => {
+                match lex_line(&mut keyword_buffer, line, line_number) {
+                    Ok(_) => lexed.append(&mut keyword_buffer),
+                    Err(error) => errors.push(error),
+                };
+                line_number += 1;
+            }
+            Err(io_err) => {
+                errors.push(LexerError::IoError(io_err));
+                return Err(errors);
+            }
+        }
     }
 
-    Ok(parsed)
+    return Ok(lexed);
 }
 
-pub fn lex_line(line: String, line_number: u16) -> Result<Vec<Keyword>, LexerError> {
-    let mut keywords: Vec<Keyword> = Vec::with_capacity(4);
-
-    // starts with 4 spaces -> normal command
+pub fn lex_line(
+    keywords: &mut Vec<Keyword>,
+    line: String,
+    line_number: u16,
+) -> Result<(), LexerError> {
+    // starts with 4 spaces -> instruction
     if let Some(line) = line.strip_prefix("    ") {
         let mut args: VecDeque<&str> = line.split(" ").collect();
         let command = args.pop_front().unwrap_or("");
         if command == "" {
-            return Ok(Vec::new());
+            return Ok(());
         }
 
         keywords.push(Keyword::Mmenonic {
@@ -92,7 +175,7 @@ pub fn lex_line(line: String, line_number: u16) -> Result<Vec<Keyword>, LexerErr
         });
     }
 
-    Ok(keywords)
+    return Ok(());
 }
 
 fn word_type(word: &str, line_number: u16) -> Result<Keyword, LexerError> {
@@ -108,13 +191,17 @@ fn word_type(word: &str, line_number: u16) -> Result<Keyword, LexerError> {
     if let Some(register_identifier) = word.strip_prefix("%") {
         return Ok(Keyword::RegisterAddress {
             name: String::from(register_identifier),
+            line_number,
         });
     }
 
     // memory address
     if let Some(address_word) = word.strip_prefix("$") {
         if let Some(address) = u16::from_str_radix(address_word, 16).ok() {
-            return Ok(Keyword::MemoryAddress(address));
+            return Ok(Keyword::MemoryAddress {
+                address,
+                line_number,
+            });
         } else {
             return Err(LexerError::CouldNotParseMemoryAddress {
                 parsed_word: String::from(address_word),
@@ -147,7 +234,10 @@ fn word_type(word: &str, line_number: u16) -> Result<Keyword, LexerError> {
     }
     .and_then(|(word, radix)| u16::from_str_radix(word, radix).ok())
     {
-        return Ok(Keyword::Constant(parsed));
+        return Ok(Keyword::Constant {
+            value: parsed,
+            line_number,
+        });
     }
 
     // mmenonic

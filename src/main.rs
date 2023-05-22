@@ -1,8 +1,26 @@
-use risc20_assembler::parser::{Parser, ParserError};
+use std::{env, process};
 
-fn main() -> Result<(), ParserError> {
-    let parser = Parser::new("./test.s")?;
-    parser.parse()?;
+use risc20_assembler::{lexer, parser};
 
-    Ok(())
+fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    if args.len() < 2 {
+        eprintln!("Error: No input file provided!");
+        process::exit(1);
+    }
+
+    let lexed = lexer::lexer(args.get(1).unwrap()).unwrap_or_else(|errors| {
+        for err in errors {
+            eprintln!("Lexer: {err}");
+        }
+        process::exit(1);
+    });
+
+    let parsed = parser::parser(lexed).unwrap_or_else(|err| {
+        eprintln!("Parser: {err}");
+        process::exit(1);
+    });
+    println!("{:?}", parsed.keys());
+    println!("{:?}", parsed.values());
 }

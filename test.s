@@ -1,2 +1,2 @@
 .hello-world
-    ldc 0x11
+    ldc %regA 0x11
