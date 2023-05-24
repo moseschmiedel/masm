@@ -46,6 +46,7 @@ pub enum Instruction {
         source: LoadSource,
     },
     StoreRAM,
+    Halt,
     Noop,
     Jump {
         condition: JumpCondition,
@@ -85,7 +86,17 @@ enum Source {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Register {
-    adress: RegisterAddress,
+    address: RegisterAddress,
+}
+
+impl Register {
+    pub fn new(address: RegisterAddress) -> Self {
+        Self { address }
+    }
+
+    pub fn addr(&self) -> u8 {
+        self.address.0
+    }
 }
 
 #[derive(Debug)]
@@ -96,9 +107,19 @@ pub struct UnaryExpression {
 
 #[derive(Debug)]
 pub struct BinaryExpression {
-    target: Register,
-    source_a: Register,
-    source_b: Register,
+    pub target: Register,
+    pub source_a: Register,
+    pub source_b: Register,
+}
+
+impl BinaryExpression {
+    pub fn new(target: Register, source_a: Register, source_b: Register) -> Self {
+        Self {
+            target,
+            source_a,
+            source_b,
+        }
+    }
 }
 
 #[derive(Debug)]

@@ -127,6 +127,11 @@ pub fn lexer(path: impl Into<String>) -> Result<Vec<Keyword>, Vec<LexerError>> {
         }
     }
 
+    lexed.push(Keyword::Mmenonic {
+        name: String::from("hlt"),
+        line_number,
+    });
+
     return Ok(lexed);
 }
 

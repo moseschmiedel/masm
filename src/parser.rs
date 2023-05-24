@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::slice::Iter;
 
-use crate::ir;
+use crate::ir::{self, BinaryExpression};
 use crate::lexer::{Keyword, LineNumber};
 
 pub enum ParserError {
@@ -138,6 +138,8 @@ fn try_parse_instruction(
     match next_keyword {
         Keyword::Mmenonic { name, line_number } => match name.as_str() {
             "ldc" => return try_parse_ldc(keywords, *line_number),
+            "add" => return try_parse_add(keywords, *line_number),
+            "hlt" => return Ok(ir::Instruction::Halt),
             unknown => {
                 return Err(ParserError::UnknownComand {
                     command: unknown.to_string(),
@@ -192,6 +194,43 @@ fn try_parse_ldc(
             return Err(ParserError::MissingArgument {
                 command: String::from("ldc"),
                 arg_name: String::from("Constant16"),
+                line_number,
+            });
+        }
+    } else {
+        return Err(ParserError::MissingArgument {
+            command: String::from("ldc"),
+            arg_name: String::from("TargetRegister"),
+            line_number,
+        });
+    }
+}
+
+/// **add** `$TargetRegister` `$SourceRegisterA` `$SourceRegisterB`
+fn try_parse_add(
+    keywords: &mut Iter<Keyword>,
+    line_number: u16,
+) -> Result<ir::Instruction, ParserError> {
+    if let Some(maybe_target_register) = keywords.next() {
+        let target = ir::Register::new(try_parse_register(maybe_target_register)?);
+        if let Some(maybe_source_a) = keywords.next() {
+            let source_a = ir::Register::new(try_parse_register(maybe_source_a)?);
+            if let Some(maybe_source_b) = keywords.next() {
+                let source_b = ir::Register::new(try_parse_register(maybe_source_b)?);
+                return Ok(ir::Instruction::Add(ir::BinaryExpression::new(
+                    target, source_a, source_b,
+                )));
+            } else {
+                return Err(ParserError::MissingArgument {
+                    command: String::from("add"),
+                    arg_name: String::from("SourceRegisterB"),
+                    line_number,
+                });
+            }
+        } else {
+            return Err(ParserError::MissingArgument {
+                command: String::from("add"),
+                arg_name: String::from("SourceRegisterA"),
                 line_number,
             });
         }
