@@ -17,7 +17,7 @@ impl InstructionWord {
         self.buffer.fill(false);
     }
 
-    fn set_constant(&mut self, constant: u16) {
+    fn set_constant16(&mut self, constant: u16) {
         let lower_4_bit = constant % 16;
         let upper_12_bit = (constant - lower_4_bit) >> 4;
 
@@ -44,6 +44,9 @@ impl InstructionWord {
     }
     fn set_opcode(&mut self, opcode: u8) {
         set_bits(&mut self.buffer[0..=7], opcode as u32);
+    }
+    fn set_constant12(&mut self, constant: u16) {
+        set_bits(&mut self.buffer[8..=19], constant as u32);
     }
 }
 
@@ -99,7 +102,7 @@ pub fn generator(ir: ir::IR) -> Vec<InstructionWord> {
                     } => {
                         instruction_word.set_load();
                         instruction_word.set_load_address(address.0);
-                        instruction_word.set_constant(c);
+                        instruction_word.set_constant16(c);
                         binary.push(instruction_word.clone());
                     }
                     &ir::Instruction::Add(ir::BinaryExpression {
@@ -115,6 +118,15 @@ pub fn generator(ir: ir::IR) -> Vec<InstructionWord> {
                     }
                     &ir::Instruction::Halt => {
                         instruction_word.set_opcode(0x7f);
+                        binary.push(instruction_word.clone());
+                    }
+                    &ir::Instruction::Jump {
+                        target: ir::JumpTarget::Constant(c),
+                        condition: ir::JumpCondition::True,
+                        negate: false,
+                    } => {
+                        instruction_word.set_opcode(0x80);
+                        instruction_word.set_constant12(c);
                         binary.push(instruction_word.clone());
                     }
                     _ => (),

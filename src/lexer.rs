@@ -217,10 +217,14 @@ fn word_type(word: &str, line_number: u16) -> Result<Keyword, LexerError> {
 
     // constant
     // e.g.: 0xa7, 173, 0b0011010
-    if let Some(parsed) = if let Some(hex_word) = word.strip_prefix("0x") {
-        Some((hex_word, 16))
+    if let Some(parsed) = if let Some(signed_hex_word) = word.strip_prefix("-0x") {
+        Some((signed_hex_word, 16, true))
+    } else if let Some(hex_word) = word.strip_prefix("0x") {
+        Some((hex_word, 16, false))
+    } else if let Some(signed_binary_word) = word.strip_prefix("-0b") {
+        Some((signed_binary_word, 2, true))
     } else if let Some(binary_word) = word.strip_prefix("0b") {
-        Some((binary_word, 2))
+        Some((binary_word, 2, false))
     } else if word
         .chars()
         .next()
@@ -233,12 +237,32 @@ fn word_type(word: &str, line_number: u16) -> Result<Keyword, LexerError> {
         })
         .is_some()
     {
-        Some((word, 10))
+        Some((word, 10, false))
+    } else if let Some(signed_dec_word) = word.strip_prefix("-") {
+        if signed_dec_word
+            .chars()
+            .next()
+            .and_then(|first_char| {
+                if first_char.is_digit(10) {
+                    Some(())
+                } else {
+                    None
+                }
+            })
+            .is_some()
+        {
+            Some((signed_dec_word, 10, true))
+        } else {
+            None
+        }
     } else {
         None
     }
-    .and_then(|(word, radix)| u16::from_str_radix(word, radix).ok())
-    {
+    .and_then(|(word, radix, sign)| {
+        u16::from_str_radix(word, radix)
+            .and_then(|num| Ok(if sign { num.wrapping_neg() } else { num }))
+            .ok()
+    }) {
         return Ok(Keyword::Constant {
             value: parsed,
             line_number,

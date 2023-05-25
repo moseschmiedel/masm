@@ -140,6 +140,7 @@ fn try_parse_instruction(
             "ldc" => return try_parse_ldc(keywords, *line_number),
             "add" => return try_parse_add(keywords, *line_number),
             "hlt" => return Ok(ir::Instruction::Halt),
+            "jrcon" => return try_parse_jrcon(keywords, *line_number),
             unknown => {
                 return Err(ParserError::UnknownComand {
                     command: unknown.to_string(),
@@ -238,6 +239,27 @@ fn try_parse_add(
         return Err(ParserError::MissingArgument {
             command: String::from("ldc"),
             arg_name: String::from("TargetRegister"),
+            line_number,
+        });
+    }
+}
+
+/// **jrcon** `ConstantSigned12`
+fn try_parse_jrcon(
+    keywords: &mut Iter<Keyword>,
+    line_number: u16,
+) -> Result<ir::Instruction, ParserError> {
+    if let Some(maybe_constant) = keywords.next() {
+        let constant = try_parse_constant(maybe_constant)?;
+        return Ok(ir::Instruction::Jump {
+            target: ir::JumpTarget::Constant(constant.0),
+            condition: ir::JumpCondition::True,
+            negate: false,
+        });
+    } else {
+        return Err(ParserError::MissingArgument {
+            command: String::from("jrcon"),
+            arg_name: String::from("ConstantSigned12"),
             line_number,
         });
     }

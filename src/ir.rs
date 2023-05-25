@@ -49,6 +49,7 @@ pub enum Instruction {
     Halt,
     Noop,
     Jump {
+        target: JumpTarget,
         condition: JumpCondition,
         negate: bool,
     },
@@ -141,6 +142,13 @@ pub enum LoadSource {
     Constant(u16),
     RAM { address: MemoryAddress },
     Pgm,
+}
+
+#[derive(Debug)]
+pub enum JumpTarget {
+    Constant(u16),
+    Register(Register),
+    Label(Label),
 }
 
 #[derive(Debug)]
