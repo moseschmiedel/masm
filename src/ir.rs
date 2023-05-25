@@ -39,7 +39,6 @@ impl Eq for Label {}
 
 #[derive(Debug)]
 pub enum Instruction {
-    EmptyLine,
     Move(UnaryExpression),
     Load {
         address: RegisterAddress,
@@ -57,8 +56,8 @@ pub enum Instruction {
     AddWithCarry(BinaryExpression),
     Subtract(BinaryExpression),
     SubtractWithCarry(BinaryExpression),
-    Increment(UnaryExpression),
-    Decrement(UnaryExpression),
+    Increment(UnaryStatement),
+    Decrement(UnaryStatement),
     Multiply(BinaryExpression),
     Test(BinaryStatement),
     AND(BinaryExpression),
@@ -102,8 +101,25 @@ impl Register {
 
 #[derive(Debug)]
 pub struct UnaryExpression {
-    target: Register,
-    source_a: Register,
+    pub target: Register,
+    pub source_a: Register,
+}
+
+impl UnaryExpression {
+    pub fn new(target: Register, source_a: Register) -> Self {
+        Self { target, source_a }
+    }
+}
+
+#[derive(Debug)]
+pub struct UnaryStatement {
+    pub source_a: Register,
+}
+
+impl UnaryStatement {
+    pub fn new(source_a: Register) -> Self {
+        Self { source_a }
+    }
 }
 
 #[derive(Debug)]
@@ -125,16 +141,22 @@ impl BinaryExpression {
 
 #[derive(Debug)]
 pub struct BinaryStatement {
-    source_a: Register,
-    source_b: Register,
+    pub source_a: Register,
+    pub source_b: Register,
+}
+
+impl BinaryStatement {
+    pub fn new(source_a: Register, source_b: Register) -> Self {
+        Self { source_a, source_b }
+    }
 }
 
 #[derive(Debug)]
 struct TernaryExpression {
-    target: Register,
-    source_a: Register,
-    source_b: Register,
-    source_c: Register,
+    pub target: Register,
+    pub source_a: Register,
+    pub source_b: Register,
+    pub source_c: Register,
 }
 
 #[derive(Debug)]

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::slice::Iter;
 
-use crate::ir::{self, BinaryExpression};
+use crate::ir;
 use crate::lexer::{Keyword, LineNumber};
 
 pub enum ParserError {
@@ -138,7 +138,123 @@ fn try_parse_instruction(
     match next_keyword {
         Keyword::Mmenonic { name, line_number } => match name.as_str() {
             "ldc" => return try_parse_ldc(keywords, *line_number),
-            "add" => return try_parse_add(keywords, *line_number),
+            "add" => {
+                return Ok(ir::Instruction::Add(try_parse_binary_expression(
+                    "add",
+                    keywords,
+                    *line_number,
+                )?))
+            }
+            "addc" => {
+                return Ok(ir::Instruction::AddWithCarry(try_parse_binary_expression(
+                    "addc",
+                    keywords,
+                    *line_number,
+                )?))
+            }
+            "sub" => {
+                return Ok(ir::Instruction::Subtract(try_parse_binary_expression(
+                    "sub",
+                    keywords,
+                    *line_number,
+                )?))
+            }
+            "subc" => {
+                return Ok(ir::Instruction::SubtractWithCarry(
+                    try_parse_binary_expression("subc", keywords, *line_number)?,
+                ))
+            }
+            "inc" => {
+                return Ok(ir::Instruction::Increment(try_parse_unary_statement(
+                    "inc",
+                    keywords,
+                    *line_number,
+                )?))
+            }
+            "dec" => {
+                return Ok(ir::Instruction::Decrement(try_parse_unary_statement(
+                    "dec",
+                    keywords,
+                    *line_number,
+                )?))
+            }
+            "mul" => {
+                return Ok(ir::Instruction::Multiply(try_parse_binary_expression(
+                    "mul",
+                    keywords,
+                    *line_number,
+                )?))
+            }
+            "and" => {
+                return Ok(ir::Instruction::AND(try_parse_binary_expression(
+                    "and",
+                    keywords,
+                    *line_number,
+                )?))
+            }
+            "or" => {
+                return Ok(ir::Instruction::OR(try_parse_binary_expression(
+                    "or",
+                    keywords,
+                    *line_number,
+                )?))
+            }
+            "not" => {
+                return Ok(ir::Instruction::NOT(try_parse_unary_expression(
+                    "not",
+                    keywords,
+                    *line_number,
+                )?))
+            }
+            "neg" => {
+                return Ok(ir::Instruction::Negate(try_parse_unary_expression(
+                    "neg",
+                    keywords,
+                    *line_number,
+                )?))
+            }
+            "xor" => {
+                return Ok(ir::Instruction::XOR(try_parse_binary_expression(
+                    "xor",
+                    keywords,
+                    *line_number,
+                )?))
+            }
+            "xnor" => {
+                return Ok(ir::Instruction::XNOR(try_parse_binary_expression(
+                    "xnor",
+                    keywords,
+                    *line_number,
+                )?))
+            }
+            "shl" => {
+                return Ok(ir::Instruction::ShiftLeft(try_parse_binary_expression(
+                    "shl",
+                    keywords,
+                    *line_number,
+                )?))
+            }
+            "shr" => {
+                return Ok(ir::Instruction::ShiftRight(try_parse_binary_expression(
+                    "shr",
+                    keywords,
+                    *line_number,
+                )?))
+            }
+            "tst" => {
+                return Ok(ir::Instruction::Test(try_parse_binary_statement(
+                    "tst",
+                    keywords,
+                    *line_number,
+                )?))
+            }
+            "mov" => {
+                return Ok(ir::Instruction::Move(try_parse_unary_expression(
+                    "mov",
+                    keywords,
+                    *line_number,
+                )?))
+            }
             "hlt" => return Ok(ir::Instruction::Halt),
             "jrcon" => return try_parse_jrcon(keywords, *line_number),
             unknown => {
@@ -207,38 +323,109 @@ fn try_parse_ldc(
     }
 }
 
-/// **add** `$TargetRegister` `$SourceRegisterA` `$SourceRegisterB`
-fn try_parse_add(
+/// **instruction** `$TargetRegister` `$SourceRegister`
+fn try_parse_unary_expression(
+    instruction: &str,
     keywords: &mut Iter<Keyword>,
     line_number: u16,
-) -> Result<ir::Instruction, ParserError> {
+) -> Result<ir::UnaryExpression, ParserError> {
+    if let Some(maybe_target_register) = keywords.next() {
+        let target = ir::Register::new(try_parse_register(maybe_target_register)?);
+        if let Some(maybe_source_register) = keywords.next() {
+            let source = ir::Register::new(try_parse_register(maybe_source_register)?);
+            return Ok(ir::UnaryExpression::new(target, source));
+        } else {
+            return Err(ParserError::MissingArgument {
+                command: String::from(instruction),
+                arg_name: String::from("SourceRegister"),
+                line_number,
+            });
+        }
+    } else {
+        return Err(ParserError::MissingArgument {
+            command: String::from(instruction),
+            arg_name: String::from("TargetRegister"),
+            line_number,
+        });
+    }
+}
+
+/// **instruction** $SourceRegister`
+fn try_parse_unary_statement(
+    instruction: &str,
+    keywords: &mut Iter<Keyword>,
+    line_number: u16,
+) -> Result<ir::UnaryStatement, ParserError> {
+    if let Some(maybe_source_register) = keywords.next() {
+        let source = ir::Register::new(try_parse_register(maybe_source_register)?);
+        return Ok(ir::UnaryStatement::new(source));
+    } else {
+        return Err(ParserError::MissingArgument {
+            command: String::from(instruction),
+            arg_name: String::from("SourceRegister"),
+            line_number,
+        });
+    }
+}
+
+/// **instruction** `$TargetRegister` `$SourceRegisterA` `$SourceRegisterB`
+fn try_parse_binary_expression(
+    instruction: &str,
+    keywords: &mut Iter<Keyword>,
+    line_number: u16,
+) -> Result<ir::BinaryExpression, ParserError> {
     if let Some(maybe_target_register) = keywords.next() {
         let target = ir::Register::new(try_parse_register(maybe_target_register)?);
         if let Some(maybe_source_a) = keywords.next() {
             let source_a = ir::Register::new(try_parse_register(maybe_source_a)?);
             if let Some(maybe_source_b) = keywords.next() {
                 let source_b = ir::Register::new(try_parse_register(maybe_source_b)?);
-                return Ok(ir::Instruction::Add(ir::BinaryExpression::new(
-                    target, source_a, source_b,
-                )));
+                return Ok(ir::BinaryExpression::new(target, source_a, source_b));
             } else {
                 return Err(ParserError::MissingArgument {
-                    command: String::from("add"),
+                    command: String::from(instruction),
                     arg_name: String::from("SourceRegisterB"),
                     line_number,
                 });
             }
         } else {
             return Err(ParserError::MissingArgument {
-                command: String::from("add"),
+                command: String::from(instruction),
                 arg_name: String::from("SourceRegisterA"),
                 line_number,
             });
         }
     } else {
         return Err(ParserError::MissingArgument {
-            command: String::from("ldc"),
+            command: String::from(instruction),
             arg_name: String::from("TargetRegister"),
+            line_number,
+        });
+    }
+}
+
+/// **instruction** $SourceRegisterA` `$SourceRegisterB`
+fn try_parse_binary_statement(
+    instruction: &str,
+    keywords: &mut Iter<Keyword>,
+    line_number: u16,
+) -> Result<ir::BinaryStatement, ParserError> {
+    if let Some(maybe_source_a) = keywords.next() {
+        let source_a = ir::Register::new(try_parse_register(maybe_source_a)?);
+        if let Some(maybe_source_b) = keywords.next() {
+            let source_b = ir::Register::new(try_parse_register(maybe_source_b)?);
+            return Ok(ir::BinaryStatement::new(source_a, source_b));
+        } else {
+            return Err(ParserError::MissingArgument {
+                command: String::from(instruction),
+                arg_name: String::from("SourceRegisterB"),
+                line_number,
+            });
+        }
+    } else {
+        return Err(ParserError::MissingArgument {
+            command: String::from(instruction),
+            arg_name: String::from("SourceRegisterA"),
             line_number,
         });
     }
