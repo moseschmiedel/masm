@@ -2,6 +2,7 @@ use std::{
     collections::VecDeque,
     fs::File,
     io::{self, BufRead},
+    path::{Path, PathBuf},
 };
 
 pub trait LineNumber {
@@ -102,10 +103,9 @@ impl std::fmt::Display for LexerError {
     }
 }
 
-pub fn lexer(path: impl Into<String>) -> Result<Vec<Keyword>, Vec<LexerError>> {
+pub fn lexer(path: &Path) -> Result<Vec<Keyword>, Vec<LexerError>> {
     let mut errors: Vec<LexerError> = Vec::new();
-    let file: File =
-        File::open(path.into()).or_else(|io_err| Err(vec![LexerError::IoError(io_err)]))?;
+    let file: File = File::open(path).or_else(|io_err| Err(vec![LexerError::IoError(io_err)]))?;
     let reader = io::BufReader::new(file);
     let mut line_number = 0;
     let mut lexed: Vec<Keyword> = Vec::with_capacity(32);
