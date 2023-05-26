@@ -2,7 +2,7 @@ use std::{
     collections::VecDeque,
     fs::File,
     io::{self, BufRead},
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 pub trait LineNumber {
