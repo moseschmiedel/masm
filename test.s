@@ -1,5 +1,5 @@
-.hello-world
-    ldc %regA 0x11
-    ldc %regC 0x8
+    ldc %regA 0x8
+    ldc %regB 0x0
+    jrcon 1
+    add %regB %regA %regB
     jrcon -2
-    add %regB %regA %regC
