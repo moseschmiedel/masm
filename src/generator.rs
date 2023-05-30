@@ -202,8 +202,8 @@ pub fn generator(ir: ir::IR) -> Vec<InstructionWord> {
                         condition: ir::JumpCondition::True,
                         negate: false,
                     } => {
-                        instruction_word.set_opcode(0x80);
-                        instruction_word.set_constant12(*c);
+                        instruction_word.set_opcode(0x60);
+                        instruction_word.set_constant12(*c - 1);
                         binary.push(instruction_word.clone());
                     }
                     ir::Instruction::Halt => {
