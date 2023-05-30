@@ -7,7 +7,7 @@ use std::{
 
 use clap::Parser;
 
-use rasm::{generator, lexer, parser};
+use masm::{generator, lexer, parser};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about=None)]

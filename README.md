@@ -11,8 +11,8 @@ Download the latest precompiled binaries for your system (Architecture + OS) fro
 #### Compilation
 Clone this repository and checkout the desired release:
 ```sh
-git clone https://gitlab.com/moseschmiedel/rasm.git
-cd rasm
+git clone https://gitlab.com/moseschmiedel/masm.git
+cd masm
 git checkout <desired-release-branch>
 ```
 Compile and install the assembler locally via cargo:
@@ -24,7 +24,8 @@ cargo install --path .
 Using the assembler is straight-forward. It takes one input-assembly-file and produces a `.hex` output-file.
 The name of the output-file can be specified.
 ```sh
-Usage: rasm [OPTIONS] <INPUT_PATH>
+$ masm --help
+Usage: masm [OPTIONS] <INPUT_PATH>
 
 Arguments:
   <INPUT_PATH>
@@ -42,4 +43,4 @@ Mose Schmiedel
 ## Copyright and License
 
 This software is copyright (c) 2023 by Mose Schmiedel
-rasm is licensed under the [MIT](LICENSE.TXT) license.
+masm is licensed under the [MIT](LICENSE.TXT) license.
