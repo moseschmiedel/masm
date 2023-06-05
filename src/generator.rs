@@ -81,14 +81,12 @@ const HEX_MAP: [&str; 16] = [
 
 fn nibble_to_hex(buffer: &[bool]) -> String {
     let mut byte = 0usize;
-    let mut counter = 0;
-    for bit in buffer {
+    for (idx, bit) in buffer.iter().enumerate() {
         if *bit {
-            byte += 2usize.pow(counter);
+            byte += 2usize.pow(idx as u32);
         }
-        counter += 1;
     }
-    return HEX_MAP[byte].to_string();
+    HEX_MAP[byte].to_string()
 }
 
 fn set_bits(buffer: &mut [bool], int: u32) {
@@ -96,7 +94,7 @@ fn set_bits(buffer: &mut [bool], int: u32) {
 
     for bit in buffer {
         *bit = int % 2 == 1;
-        int = int >> 1;
+        int >>= 1;
     }
 }
 
@@ -225,5 +223,5 @@ pub fn generator(ir: ir::IR) -> Vec<InstructionWord> {
         }
     }
 
-    return binary;
+    binary
 }

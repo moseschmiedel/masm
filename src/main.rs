@@ -1,7 +1,6 @@
 use std::{
     fs::File,
     io::{BufWriter, Write},
-    path::PathBuf,
     process,
 };
 
@@ -24,14 +23,12 @@ struct Cli {
 
 fn main() {
     let cli = Cli::parse();
-    let input_path = PathBuf::from(cli.input_path)
-        .canonicalize()
-        .unwrap_or_else(|err| {
-            eprintln!("Error: Could not find input file:");
-            eprintln!("{err}");
-            process::exit(1);
-        });
-    let output_path = PathBuf::from(cli.output_path.unwrap_or("output.hex".into()));
+    let input_path = cli.input_path.canonicalize().unwrap_or_else(|err| {
+        eprintln!("Error: Could not find input file:");
+        eprintln!("{err}");
+        process::exit(1);
+    });
+    let output_path = cli.output_path.unwrap_or("output.hex".into());
 
     if cli.debug_enable {
         println!("Input: {}", input_path.display());

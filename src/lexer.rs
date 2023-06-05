@@ -20,12 +20,12 @@ pub enum Keyword {
 
 impl LineNumber for Keyword {
     fn get_line_number(&self) -> u16 {
-        match self {
-            &Keyword::Mmenonic { line_number, .. } => line_number,
-            &Keyword::RegisterAddress { line_number, .. } => line_number,
-            &Keyword::MemoryAddress { line_number, .. } => line_number,
-            &Keyword::Constant { line_number, .. } => line_number,
-            &Keyword::Label { line_number, .. } => line_number,
+        match *self {
+            Keyword::Mmenonic { line_number, .. } => line_number,
+            Keyword::RegisterAddress { line_number, .. } => line_number,
+            Keyword::MemoryAddress { line_number, .. } => line_number,
+            Keyword::Constant { line_number, .. } => line_number,
+            Keyword::Label { line_number, .. } => line_number,
         }
     }
 }
@@ -105,7 +105,7 @@ impl std::fmt::Display for LexerError {
 
 pub fn lexer(path: &Path) -> Result<Vec<Keyword>, Vec<LexerError>> {
     let mut errors: Vec<LexerError> = Vec::new();
-    let file: File = File::open(path).or_else(|io_err| Err(vec![LexerError::IoError(io_err)]))?;
+    let file: File = File::open(path).map_err(|io_err| vec![LexerError::IoError(io_err)])?;
     let reader = io::BufReader::new(file);
     let mut line_number = 0;
     let mut lexed: Vec<Keyword> = Vec::with_capacity(32);
@@ -132,7 +132,7 @@ pub fn lexer(path: &Path) -> Result<Vec<Keyword>, Vec<LexerError>> {
         line_number,
     });
 
-    return Ok(lexed);
+    Ok(lexed)
 }
 
 pub fn lex_line(
@@ -142,9 +142,9 @@ pub fn lex_line(
 ) -> Result<(), LexerError> {
     // starts with 4 spaces -> instruction
     if let Some(line) = line.strip_prefix("    ") {
-        let mut args: VecDeque<&str> = line.split(" ").collect();
+        let mut args: VecDeque<&str> = line.split(' ').collect();
         let command = args.pop_front().unwrap_or("");
-        if command == "" {
+        if command.is_empty() {
             return Ok(());
         }
 
@@ -173,19 +173,19 @@ pub fn lex_line(
         }
     }
     // starts with . -> label
-    if let Some(label) = line.strip_prefix(".") {
+    if let Some(label) = line.strip_prefix('.') {
         keywords.push(Keyword::Label {
             name: label.to_string(),
             line_number,
         });
     }
 
-    return Ok(());
+    Ok(())
 }
 
 fn word_type(word: &str, line_number: u16) -> Result<Keyword, LexerError> {
     // label
-    if let Some(label_name) = word.strip_prefix(".") {
+    if let Some(label_name) = word.strip_prefix('.') {
         return Ok(Keyword::Label {
             name: String::from(label_name),
             line_number,
@@ -193,7 +193,7 @@ fn word_type(word: &str, line_number: u16) -> Result<Keyword, LexerError> {
     }
 
     // register address
-    if let Some(register_identifier) = word.strip_prefix("%") {
+    if let Some(register_identifier) = word.strip_prefix('%') {
         return Ok(Keyword::RegisterAddress {
             name: String::from(register_identifier),
             line_number,
@@ -201,8 +201,8 @@ fn word_type(word: &str, line_number: u16) -> Result<Keyword, LexerError> {
     }
 
     // memory address
-    if let Some(address_word) = word.strip_prefix("$") {
-        if let Some(address) = u16::from_str_radix(address_word, 16).ok() {
+    if let Some(address_word) = word.strip_prefix('$') {
+        if let Ok(address) = u16::from_str_radix(address_word, 16) {
             return Ok(Keyword::MemoryAddress {
                 address,
                 line_number,
@@ -229,7 +229,7 @@ fn word_type(word: &str, line_number: u16) -> Result<Keyword, LexerError> {
         .chars()
         .next()
         .and_then(|first_char| {
-            if first_char.is_digit(10) {
+            if first_char.is_ascii_digit() {
                 Some(())
             } else {
                 None
@@ -238,12 +238,12 @@ fn word_type(word: &str, line_number: u16) -> Result<Keyword, LexerError> {
         .is_some()
     {
         Some((word, 10, false))
-    } else if let Some(signed_dec_word) = word.strip_prefix("-") {
+    } else if let Some(signed_dec_word) = word.strip_prefix('-') {
         if signed_dec_word
             .chars()
             .next()
             .and_then(|first_char| {
-                if first_char.is_digit(10) {
+                if first_char.is_ascii_digit() {
                     Some(())
                 } else {
                     None
@@ -260,7 +260,7 @@ fn word_type(word: &str, line_number: u16) -> Result<Keyword, LexerError> {
     }
     .and_then(|(word, radix, sign)| {
         u16::from_str_radix(word, radix)
-            .and_then(|num| Ok(if sign { num.wrapping_neg() } else { num }))
+            .map(|num| if sign { num.wrapping_neg() } else { num })
             .ok()
     }) {
         return Ok(Keyword::Constant {
@@ -277,8 +277,8 @@ fn word_type(word: &str, line_number: u16) -> Result<Keyword, LexerError> {
         });
     }
 
-    return Err(LexerError::InvalidIdentifier {
+    Err(LexerError::InvalidIdentifier {
         actual: String::from(word),
         line_number,
-    });
+    })
 }
