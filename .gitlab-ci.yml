@@ -1,0 +1,109 @@
+# image contains the required cargo subcommands and rustup components
+image: "registry.gitlab.com/moseschmiedel/masm/rust-ci-image:latest"
+cache:
+  paths:
+    - target/
+
+variables:
+  PACKAGE_REGISTRY_URL: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic
+
+default:
+  before_script:
+    - | # skip if not using custom Rust image
+      if hash rustc 2>/dev/null; then
+        rustc --version
+        cargo --version
+      fi
+
+stages:
+  - test
+  - integration-test
+  - release-build
+  - release
+
+test-code-junit:
+  stage: test
+  when: manual # TODO: Re-enable when can make this faster
+  artifacts:
+    when: always
+    reports:
+      junit: "results.xml"
+  coverage: '/\d+\.\d+% coverage, /'
+  script:
+    - cargo test --target x86_64-unknown-linux-gnu -- -Z unstable-options --format json --report-time | cargo2junit > results.xml
+
+test-code-coverage:
+  stage: test
+  when: manual # TODO: Re-enable when can make this faster
+  artifacts:
+    when: always
+    reports:
+      cobertura: "cobertura.xml"
+  coverage: '/\d+\.\d+% coverage, /'
+  script:
+    - cargo tarpaulin --target x86_64-unknown-linux-gnu --ignore-tests --out Xml
+
+lint-code:
+  stage: test
+  script:
+    - cargo fmt -- --check
+    - cargo clippy -- -D warnings
+
+check-dependencies:
+  stage: test
+  script:
+    - cargo outdated
+
+audit-code:
+  stage: test
+  script:
+    - cargo audit
+
+#run-integration-tests:
+#  stage: integration-test
+#  script:
+#    - cargo test --features include_integration_tests
+
+release-build-windows:
+  stage: release-build
+  script:
+    - cargo build --target x86_64-pc-windows-gnu --release
+    - |
+      curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file "target/x86_64-pc-windows-gnu/release/masm.exe" "${PACKAGE_REGISTRY_URL}/${CI_COMMIT_TAG}/win-x86_64/masm.exe"
+  rules:
+    - if: '$CI_COMMIT_TAG && $CI_COMMIT_TAG =~ /^v[0-9]\.[0-9]\.[0-9](-rc.+)?/'
+      when: always
+
+release-build-linux:
+  stage: release-build
+  script:
+    - cargo build --target x86_64-unknown-linux-gnu --release
+    - |
+      curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file "target/x86_64-unknown-linux-gnu/release/masm" "${PACKAGE_REGISTRY_URL}/${CI_COMMIT_TAG}/linux-x86_64/masm"
+  rules:
+    - if: '$CI_COMMIT_TAG && $CI_COMMIT_TAG =~ /^v[0-9]\.[0-9]\.[0-9](-rc.+)?/'
+      when: always
+
+release:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  variables:
+    LINUX_ASSET_LINK: "{\"name\":\"masm-linux-86_64-${CI_COMMIT_TAG}\",\"url\":\"${PACKAGE_REGISTRY_URL}/${CI_COMMIT_TAG}/linux-x86_64/masm\",\"type\":\"package\"}"
+    WIN_ASSET_LINK: "{\"name\":\"masm-win-86_64-${CI_COMMIT_TAG}\",\"url\":\"${PACKAGE_REGISTRY_URL}/${CI_COMMIT_TAG}/win-x86_64/masm.exe\",\"type\":\"package\"}"
+  script:
+    - echo "Releasing..."
+    - echo "Tag = ${CI_COMMIT_TAG}"
+    - echo "URL = ${PACKAGE_REGISTRY_URL}/${CI_COMMIT_TAG}"
+    - echo "LINUX = ${LINUX_ASSET_LINK}"
+    - echo "WIN = ${WIN_ASSET_LINK}"
+    - |
+      release-cli --debug create --name "Release ${CI_COMMIT_TAG}" --tag-name "${CI_COMMIT_TAG}" --assets-link "${LINUX_ASSET_LINK}" --assets-link "${WIN_ASSET_LINK}"
+    - echo "Done!"
+  needs:
+    - job: release-build-windows
+      artifacts: true
+    - job: release-build-linux
+      artifacts: true
+  rules:
+    - if: '$CI_COMMIT_TAG && $CI_COMMIT_TAG =~ /^v[0-9]\.[0-9]\.[0-9](-rc.+)?/'
+      when: always
