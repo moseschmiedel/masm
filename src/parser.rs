@@ -6,13 +6,17 @@ use crate::lexer::{Keyword, LineNumber};
 
 pub enum ParserError {
     EndOfStream,
-    UnknownComand {
+    UnknownCommand {
         command: String,
         line_number: u16,
     },
     MissingArgument {
         command: String,
         arg_name: String,
+        line_number: u16,
+    },
+    UndefinedLabel {
+        label_name: String,
         line_number: u16,
     },
     CouldNotParseArgument {
@@ -32,7 +36,7 @@ impl std::fmt::Display for ParserError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self {
             ParserError::EndOfStream => write!(f, "Reached end of keyword stream"),
-            ParserError::UnknownComand {
+            ParserError::UnknownCommand {
                 command,
                 line_number,
             } => write!(f, "Unknown command: '{}' at line {}", command, line_number),
@@ -45,6 +49,14 @@ impl std::fmt::Display for ParserError {
                 f,
                 "Missing argument '{}' in command '{}' at line {}",
                 arg_name, command, line_number
+            ),
+            ParserError::UndefinedLabel {
+                label_name,
+                line_number,
+            } => write!(
+                f,
+                "Could not find definition of label '{}' used at line {}",
+                label_name, line_number
             ),
             ParserError::CouldNotParseArgument {
                 command,
@@ -78,22 +90,30 @@ impl std::fmt::Debug for ParserError {
 impl std::error::Error for ParserError {}
 
 pub fn parser(keywords: Vec<Keyword>) -> Result<ir::IR, ParserError> {
+    let mut known_labels: HashMap<String, ir::Label> = HashMap::with_capacity(10);
     let mut parsed: HashMap<ir::Label, Vec<ir::Instruction>> = HashMap::with_capacity(10);
     let mut iter = keywords.iter();
     let default_label = ir::Label::new("main", 0);
     let mut last_label: Option<ir::Label> = None;
     let mut start_label: Option<ir::Label> = None;
+    let mut instructions_since_label = 0;
 
     loop {
         if let Some(next_keyword) = iter.next() {
-            if let Some(label) = try_parse_label(next_keyword) {
+            if let Ok(label) = try_parse_label_definition(
+                next_keyword,
+                last_label.clone().map(|label| label.address.0).unwrap_or(0),
+                instructions_since_label,
+            ) {
                 parsed.insert(label.clone(), Vec::new());
                 if start_label.is_none() {
                     start_label = Some(label.clone());
                 }
+                known_labels.insert(label.name.clone(), label.clone());
                 last_label = Some(label);
+                instructions_since_label = 0;
             } else {
-                match try_parse_instruction(next_keyword, &mut iter) {
+                match try_parse_instruction(next_keyword, &mut iter, &known_labels) {
                     Ok(instruction) => {
                         if let Some(vec) =
                             parsed.get_mut(last_label.as_ref().unwrap_or(&default_label))
@@ -105,6 +125,7 @@ pub fn parser(keywords: Vec<Keyword>) -> Result<ir::IR, ParserError> {
                                 vec![instruction],
                             );
                         }
+                        instructions_since_label += 1;
                     }
                     Err(ParserError::EndOfStream) => {
                         return Ok(ir::IR {
@@ -124,16 +145,10 @@ pub fn parser(keywords: Vec<Keyword>) -> Result<ir::IR, ParserError> {
     }
 }
 
-fn try_parse_label(keyword: &Keyword) -> Option<ir::Label> {
-    if let Keyword::Label { name, line_number } = keyword {
-        return Some(ir::Label::new(name, *line_number));
-    }
-    None
-}
-
 fn try_parse_instruction(
     next_keyword: &Keyword,
     keywords: &mut Iter<Keyword>,
+    known_labels: &HashMap<String, ir::Label>,
 ) -> Result<ir::Instruction, ParserError> {
     match next_keyword {
         Keyword::Mmenonic { name, line_number } => match name.as_str() {
@@ -222,28 +237,28 @@ fn try_parse_instruction(
                 *line_number,
             )?)),
             "hlt" => Ok(ir::Instruction::Halt),
-            "jrcon" => try_parse_jrcon(keywords, *line_number),
-            unknown => Err(ParserError::UnknownComand {
+            "jrcon" => try_parse_jrcon(keywords, known_labels, *line_number),
+            unknown => Err(ParserError::UnknownCommand {
                 command: unknown.to_string(),
                 line_number: *line_number,
             }),
         },
-        Keyword::Constant { value, line_number } => Err(ParserError::UnknownComand {
+        Keyword::Constant { value, line_number } => Err(ParserError::UnknownCommand {
             command: format!("{}", value),
             line_number: *line_number,
         }),
         Keyword::MemoryAddress {
             address,
             line_number,
-        } => Err(ParserError::UnknownComand {
+        } => Err(ParserError::UnknownCommand {
             command: format!("{}", address),
             line_number: *line_number,
         }),
-        Keyword::Label { name, line_number } => Err(ParserError::UnknownComand {
+        Keyword::Label { name, line_number } => Err(ParserError::UnknownCommand {
             command: name.to_string(),
             line_number: *line_number,
         }),
-        Keyword::RegisterAddress { name, line_number } => Err(ParserError::UnknownComand {
+        Keyword::RegisterAddress { name, line_number } => Err(ParserError::UnknownCommand {
             command: name.to_string(),
             line_number: *line_number,
         }),
@@ -390,19 +405,31 @@ fn try_parse_binary_statement(
 /// **jrcon** `ConstantSigned12`
 fn try_parse_jrcon(
     keywords: &mut Iter<Keyword>,
+    known_labels: &HashMap<String, ir::Label>,
     line_number: u16,
 ) -> Result<ir::Instruction, ParserError> {
-    if let Some(maybe_constant) = keywords.next() {
-        let constant = try_parse_constant(maybe_constant)?;
-        Ok(ir::Instruction::Jump {
-            target: ir::JumpTarget::Constant(constant.0),
-            condition: ir::JumpCondition::True,
-            negate: false,
-        })
+    if let Some(maybe_target) = keywords.next() {
+        if let Ok(constant) = try_parse_constant(maybe_target) {
+            Ok(ir::Instruction::Jump {
+                target: ir::JumpTarget::Constant(constant.0),
+                condition: ir::JumpCondition::True,
+            })
+        } else if let Ok(label) = try_parse_label_identifier(maybe_target, known_labels) {
+            Ok(ir::Instruction::Jump {
+                target: ir::JumpTarget::Label(label),
+                condition: ir::JumpCondition::True,
+            })
+        } else {
+            Err(ParserError::MissingArgument {
+                command: String::from("jrcon"),
+                arg_name: String::from("ConstantSigned12 or JumpLabel"),
+                line_number,
+            })
+        }
     } else {
         Err(ParserError::MissingArgument {
             command: String::from("jrcon"),
-            arg_name: String::from("ConstantSigned12"),
+            arg_name: String::from("ConstantSigned12 or JumpLabel"),
             line_number,
         })
     }
@@ -413,6 +440,46 @@ fn try_parse_constant(keyword: &Keyword) -> Result<ir::Constant, ParserError> {
         &Keyword::Constant { value, .. } => Ok(ir::Constant(value)),
         _ => Err(ParserError::ExpectedFound {
             expected: String::from("Keyword::Constant"),
+            found: format!("{:?}", keyword),
+            line_number: keyword.get_line_number(),
+        }),
+    }
+}
+
+fn try_parse_label_definition(
+    keyword: &Keyword,
+    last_label_address: u16,
+    instructions_since_label: u16,
+) -> Result<ir::Label, ParserError> {
+    match keyword {
+        Keyword::Label { name, .. } => Ok(ir::Label::new(
+            name,
+            last_label_address + instructions_since_label,
+        )),
+        _ => Err(ParserError::ExpectedFound {
+            expected: String::from("Keyword::Label"),
+            found: format!("{:?}", keyword),
+            line_number: keyword.get_line_number(),
+        }),
+    }
+}
+
+fn try_parse_label_identifier(
+    keyword: &Keyword,
+    known_labels: &HashMap<String, ir::Label>,
+) -> Result<ir::Label, ParserError> {
+    match &keyword {
+        Keyword::Label { name, line_number } => {
+            known_labels
+                .get(name)
+                .cloned()
+                .ok_or(ParserError::UndefinedLabel {
+                    label_name: name.clone(),
+                    line_number: *line_number,
+                })
+        }
+        _ => Err(ParserError::ExpectedFound {
+            expected: String::from("Keyword::Label"),
             found: format!("{:?}", keyword),
             line_number: keyword.get_line_number(),
         }),

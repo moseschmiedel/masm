@@ -107,7 +107,7 @@ pub fn generator(ir: ir::IR) -> Vec<InstructionWord> {
 
     for label in labels {
         if let Some(instructions) = ir.instructions.get(label) {
-            for instr in instructions {
+            for (idx, instr) in instructions.iter().enumerate() {
                 instruction_word.clear();
                 match instr {
                     ir::Instruction::Add(binary_expression) => {
@@ -198,10 +198,18 @@ pub fn generator(ir: ir::IR) -> Vec<InstructionWord> {
                     ir::Instruction::Jump {
                         target: ir::JumpTarget::Constant(c),
                         condition: ir::JumpCondition::True,
-                        negate: false,
                     } => {
                         instruction_word.set_opcode(0x60);
                         instruction_word.set_constant12(*c - 1);
+                        binary.push(instruction_word.clone());
+                    }
+                    ir::Instruction::Jump {
+                        target: ir::JumpTarget::Label(jump_label),
+                        condition: ir::JumpCondition::True,
+                    } => {
+                        let offset: u16 = jump_label.address.0 - (label.address.0 + (idx as u16));
+                        instruction_word.set_opcode(0x60);
+                        instruction_word.set_constant12(offset - 2);
                         binary.push(instruction_word.clone());
                     }
                     ir::Instruction::Halt => {

@@ -155,12 +155,6 @@ pub fn lex_line(
 
         while let Some(word) = args.pop_front() {
             match word_type(word, line_number) {
-                Ok(Keyword::Label { name, line_number }) => {
-                    return Err(LexerError::LabelAfterCommand {
-                        label_name: name,
-                        line_number,
-                    })
-                }
                 Ok(Keyword::Mmenonic { name, line_number }) => {
                     return Err(LexerError::CommandAfterCommand {
                         command_name: name,
