@@ -257,6 +257,10 @@ pub fn generator(ir: ir::IR) -> Vec<InstructionWord> {
                         instruction_word.set_constant16(*c);
                         binary.push(instruction_word.clone());
                     }
+                    ir::Instruction::Noop => {
+                        instruction_word.set_opcode(0x6c);
+                        binary.push(instruction_word.clone());
+                    }
                     _ => (),
                 }
             }

@@ -266,6 +266,7 @@ fn try_parse_instruction(
                 ir::JumpCondition::Less,
             ),
             "jrcon" => try_parse_jrcon(keywords, known_labels, *line_number),
+            "nop" => Ok(ir::Instruction::Noop),
             unknown => Err(ParserError::UnknownCommand {
                 command: unknown.to_string(),
                 line_number: *line_number,
