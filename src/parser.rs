@@ -237,19 +237,52 @@ fn try_parse_instruction(
                 *line_number,
             )?)),
             "hlt" => Ok(ir::Instruction::Halt),
+            "jmp" => try_parse_jmp(
+                next_keyword,
+                keywords,
+                known_labels,
+                *line_number,
+                ir::JumpCondition::True,
+            ),
+            "jz" => try_parse_jmp(
+                next_keyword,
+                keywords,
+                known_labels,
+                *line_number,
+                ir::JumpCondition::Zero,
+            ),
+            "jnz" => try_parse_jmp(
+                next_keyword,
+                keywords,
+                known_labels,
+                *line_number,
+                ir::JumpCondition::NotZero,
+            ),
+            "jc" => try_parse_jmp(
+                next_keyword,
+                keywords,
+                known_labels,
+                *line_number,
+                ir::JumpCondition::Less,
+            ),
             "jrcon" => try_parse_jrcon(keywords, known_labels, *line_number),
             unknown => Err(ParserError::UnknownCommand {
                 command: unknown.to_string(),
                 line_number: *line_number,
             }),
         },
-        Keyword::Constant { value, line_number } => Err(ParserError::UnknownCommand {
+        Keyword::Constant {
+            value,
+            line_number,
+            origin: _,
+        } => Err(ParserError::UnknownCommand {
             command: format!("{}", value),
             line_number: *line_number,
         }),
         Keyword::MemoryAddress {
             address,
             line_number,
+            origin: _,
         } => Err(ParserError::UnknownCommand {
             command: format!("{}", address),
             line_number: *line_number,
@@ -397,6 +430,42 @@ fn try_parse_binary_statement(
         Err(ParserError::MissingArgument {
             command: String::from(instruction),
             arg_name: String::from("SourceRegisterA"),
+            line_number,
+        })
+    }
+}
+
+/// **jmp** `%DestinationRegister`
+fn try_parse_jmp(
+    jump_instruction: &Keyword,
+    keywords: &mut Iter<Keyword>,
+    known_labels: &HashMap<String, ir::Label>,
+    line_number: u16,
+    condition: ir::JumpCondition,
+) -> Result<ir::Instruction, ParserError> {
+    if let Some(maybe_target) = keywords.next() {
+        if let Ok(register) = try_parse_register(maybe_target) {
+            Ok(ir::Instruction::Jump {
+                target: ir::JumpTarget::Register(ir::Register::new(register)),
+                condition,
+            })
+        } else if let Ok(label) = try_parse_label_identifier(maybe_target, known_labels) {
+            Ok(ir::Instruction::Jump {
+                target: ir::JumpTarget::Label(label),
+                condition: ir::JumpCondition::True,
+            })
+        } else {
+            Err(ParserError::CouldNotParseArgument {
+                command: jump_instruction.get_original_string(),
+                arg_name: String::from("DestinationRegister"),
+                arg_value: String::from(""),
+                line_number,
+            })
+        }
+    } else {
+        Err(ParserError::MissingArgument {
+            command: jump_instruction.get_original_string(),
+            arg_name: String::from("DestinationRegister"),
             line_number,
         })
     }

@@ -11,11 +11,40 @@ pub trait LineNumber {
 
 #[derive(Debug)]
 pub enum Keyword {
-    Mmenonic { name: String, line_number: u16 },
-    RegisterAddress { name: String, line_number: u16 },
-    MemoryAddress { address: u16, line_number: u16 },
-    Constant { value: u16, line_number: u16 },
-    Label { name: String, line_number: u16 },
+    Mmenonic {
+        name: String,
+        line_number: u16,
+    },
+    RegisterAddress {
+        name: String,
+        line_number: u16,
+    },
+    MemoryAddress {
+        address: u16,
+        line_number: u16,
+        origin: String,
+    },
+    Constant {
+        value: u16,
+        line_number: u16,
+        origin: String,
+    },
+    Label {
+        name: String,
+        line_number: u16,
+    },
+}
+
+impl Keyword {
+    pub fn get_original_string(&self) -> String {
+        match &self {
+            Keyword::Mmenonic { name, .. } => name.clone(),
+            Keyword::RegisterAddress { name, .. } => name.clone(),
+            Keyword::Label { name, .. } => name.clone(),
+            Keyword::Constant { origin, .. } => origin.clone(),
+            Keyword::MemoryAddress { origin, .. } => origin.clone(),
+        }
+    }
 }
 
 impl LineNumber for Keyword {
@@ -200,6 +229,7 @@ fn word_type(word: &str, line_number: u16) -> Result<Keyword, LexerError> {
             return Ok(Keyword::MemoryAddress {
                 address,
                 line_number,
+                origin: String::from(address_word),
             });
         } else {
             return Err(LexerError::CouldNotParseMemoryAddress {
@@ -260,6 +290,7 @@ fn word_type(word: &str, line_number: u16) -> Result<Keyword, LexerError> {
         return Ok(Keyword::Constant {
             value: parsed,
             line_number,
+            origin: String::from(word),
         });
     }
 

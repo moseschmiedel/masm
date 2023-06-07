@@ -212,6 +212,38 @@ pub fn generator(ir: ir::IR) -> Vec<InstructionWord> {
                         instruction_word.set_constant12(offset - 2);
                         binary.push(instruction_word.clone());
                     }
+                    ir::Instruction::Jump {
+                        target: ir::JumpTarget::Register(reg),
+                        condition: ir::JumpCondition::True,
+                    } => {
+                        instruction_word.set_opcode(0x40);
+                        instruction_word.set_op_a(reg.addr());
+                        binary.push(instruction_word.clone());
+                    }
+                    ir::Instruction::Jump {
+                        target: ir::JumpTarget::Register(reg),
+                        condition: ir::JumpCondition::Zero,
+                    } => {
+                        instruction_word.set_opcode(0x58);
+                        instruction_word.set_op_a(reg.addr());
+                        binary.push(instruction_word.clone());
+                    }
+                    ir::Instruction::Jump {
+                        target: ir::JumpTarget::Register(reg),
+                        condition: ir::JumpCondition::NotZero,
+                    } => {
+                        instruction_word.set_opcode(0x59);
+                        instruction_word.set_op_a(reg.addr());
+                        binary.push(instruction_word.clone());
+                    }
+                    ir::Instruction::Jump {
+                        target: ir::JumpTarget::Register(reg),
+                        condition: ir::JumpCondition::Less,
+                    } => {
+                        instruction_word.set_opcode(0x5A);
+                        instruction_word.set_op_a(reg.addr());
+                        binary.push(instruction_word.clone());
+                    }
                     ir::Instruction::Halt => {
                         instruction_word.set_opcode(0x7f);
                         binary.push(instruction_word.clone());
