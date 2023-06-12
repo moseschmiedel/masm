@@ -19,11 +19,6 @@ pub enum Keyword {
         name: String,
         line_number: u16,
     },
-    MemoryAddress {
-        address: u16,
-        line_number: u16,
-        origin: String,
-    },
     Constant {
         value: u16,
         line_number: u16,
@@ -42,7 +37,6 @@ impl Keyword {
             Keyword::RegisterAddress { name, .. } => format!("%{}", name.clone()),
             Keyword::Label { name, .. } => format!(".{}", name.clone()),
             Keyword::Constant { origin, .. } => origin.clone(),
-            Keyword::MemoryAddress { origin, .. } => format!("${}", origin.clone()),
         }
     }
 }
@@ -52,7 +46,6 @@ impl LineNumber for Keyword {
         match *self {
             Keyword::Mmenonic { line_number, .. } => line_number,
             Keyword::RegisterAddress { line_number, .. } => line_number,
-            Keyword::MemoryAddress { line_number, .. } => line_number,
             Keyword::Constant { line_number, .. } => line_number,
             Keyword::Label { line_number, .. } => line_number,
         }
@@ -75,10 +68,6 @@ pub enum LexerError {
     },
     LabelAfterCommand {
         label_name: String,
-        line_number: u16,
-    },
-    CouldNotParseMemoryAddress {
-        parsed_word: String,
         line_number: u16,
     },
     IoError(io::Error),
@@ -119,14 +108,6 @@ impl std::fmt::Display for LexerError {
                 f,
                 "Invalid register identifier '{}' found at line {}",
                 actual, line_number
-            ),
-            LexerError::CouldNotParseMemoryAddress {
-                parsed_word,
-                line_number,
-            } => write!(
-                f,
-                "Could not parse '{}' to MemoryAddress at line {}",
-                parsed_word, line_number
             ),
         }
     }
@@ -221,22 +202,6 @@ fn word_type(word: &str, line_number: u16) -> Result<Keyword, LexerError> {
             name: String::from(register_identifier),
             line_number,
         });
-    }
-
-    // memory address
-    if let Some(address_word) = word.strip_prefix('$') {
-        if let Ok(address) = u16::from_str_radix(address_word, 16) {
-            return Ok(Keyword::MemoryAddress {
-                address,
-                line_number,
-                origin: String::from(address_word),
-            });
-        } else {
-            return Err(LexerError::CouldNotParseMemoryAddress {
-                parsed_word: String::from(address_word),
-                line_number,
-            });
-        }
     }
 
     // constant

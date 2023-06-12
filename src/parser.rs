@@ -315,14 +315,6 @@ fn try_parse_instruction(
             command: format!("{}", value),
             line_number: *line_number,
         }),
-        Keyword::MemoryAddress {
-            address,
-            line_number,
-            origin: _,
-        } => Err(ParserError::UnknownCommand {
-            command: format!("{}", address),
-            line_number: *line_number,
-        }),
         Keyword::Label { name, line_number } => Err(ParserError::UnknownCommand {
             command: name.to_string(),
             line_number: *line_number,
@@ -657,17 +649,6 @@ fn try_parse_register(keyword: &Keyword) -> Result<ir::RegisterAddress, ParserEr
         }
         _ => Err(ParserError::ExpectedFound {
             expected: String::from("Keyword::RegisterAddress"),
-            found: format!("{:?}", keyword),
-            line_number: keyword.get_line_number(),
-        }),
-    }
-}
-
-fn try_parse_memory_address(keyword: &Keyword) -> Result<ir::MemoryAddress, ParserError> {
-    match keyword {
-        &Keyword::MemoryAddress { address, .. } => Ok(ir::MemoryAddress(address)),
-        _ => Err(ParserError::ExpectedFound {
-            expected: String::from("Keyword::MemoryAddress"),
             found: format!("{:?}", keyword),
             line_number: keyword.get_line_number(),
         }),

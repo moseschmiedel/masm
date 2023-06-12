@@ -78,13 +78,6 @@ pub struct MemoryAddress(pub u16);
 pub struct Constant(pub u16);
 
 #[derive(Debug, Clone, Copy)]
-enum Source {
-    Register(RegisterAddress),
-    Memory(MemoryAddress),
-    Constant(Constant),
-}
-
-#[derive(Debug, Clone, Copy)]
 pub struct Register {
     address: RegisterAddress,
 }
