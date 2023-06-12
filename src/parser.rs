@@ -240,33 +240,62 @@ fn try_parse_instruction(
             "jmp" => try_parse_jmp(
                 next_keyword,
                 keywords,
-                known_labels,
                 *line_number,
                 ir::JumpCondition::True,
             ),
             "jz" => try_parse_jmp(
                 next_keyword,
                 keywords,
-                known_labels,
                 *line_number,
                 ir::JumpCondition::Zero,
             ),
             "jnz" => try_parse_jmp(
                 next_keyword,
                 keywords,
-                known_labels,
                 *line_number,
                 ir::JumpCondition::NotZero,
             ),
             "jc" => try_parse_jmp(
                 next_keyword,
                 keywords,
+                *line_number,
+                ir::JumpCondition::Less,
+            ),
+            "jrcon" => try_parse_jr(
+                next_keyword,
+                keywords,
+                known_labels,
+                *line_number,
+                ir::JumpCondition::True,
+            ),
+            "jr" => try_parse_jr(
+                next_keyword,
+                keywords,
+                known_labels,
+                *line_number,
+                ir::JumpCondition::True,
+            ),
+            "jzr" => try_parse_jr(
+                next_keyword,
+                keywords,
+                known_labels,
+                *line_number,
+                ir::JumpCondition::Zero,
+            ),
+            "jnzr" => try_parse_jr(
+                next_keyword,
+                keywords,
+                known_labels,
+                *line_number,
+                ir::JumpCondition::NotZero,
+            ),
+            "jcr" => try_parse_jr(
+                next_keyword,
+                keywords,
                 known_labels,
                 *line_number,
                 ir::JumpCondition::Less,
             ),
-            "jrcon" => try_parse_jrcon(keywords, known_labels, *line_number),
-            "jr" => try_parse_jrcon(keywords, known_labels, *line_number),
             "nop" => Ok(ir::Instruction::Noop),
             unknown => Err(ParserError::UnknownCommand {
                 command: unknown.to_string(),
@@ -441,7 +470,6 @@ fn try_parse_binary_statement(
 fn try_parse_jmp(
     jump_instruction: &Keyword,
     keywords: &mut Iter<Keyword>,
-    known_labels: &HashMap<String, ir::Label>,
     line_number: u16,
     condition: ir::JumpCondition,
 ) -> Result<ir::Instruction, ParserError> {
@@ -451,16 +479,11 @@ fn try_parse_jmp(
                 target: ir::JumpTarget::Register(ir::Register::new(register)),
                 condition,
             })
-        } else if let Ok(label) = try_parse_label_identifier(maybe_target, known_labels) {
-            Ok(ir::Instruction::Jump {
-                target: ir::JumpTarget::Label(label),
-                condition: ir::JumpCondition::True,
-            })
         } else {
             Err(ParserError::CouldNotParseArgument {
                 command: jump_instruction.get_original_string(),
                 arg_name: String::from("DestinationRegister"),
-                arg_value: String::from(""),
+                arg_value: maybe_target.get_original_string(),
                 line_number,
             })
         }
@@ -473,33 +496,36 @@ fn try_parse_jmp(
     }
 }
 
-/// **jrcon** `ConstantSigned12`
-fn try_parse_jrcon(
+/// **jr** `ConstantSigned12`
+fn try_parse_jr(
+    jump_instruction: &Keyword,
     keywords: &mut Iter<Keyword>,
     known_labels: &HashMap<String, ir::Label>,
     line_number: u16,
+    condition: ir::JumpCondition,
 ) -> Result<ir::Instruction, ParserError> {
     if let Some(maybe_target) = keywords.next() {
         if let Ok(constant) = try_parse_constant(maybe_target) {
             Ok(ir::Instruction::Jump {
                 target: ir::JumpTarget::Constant(constant.0),
-                condition: ir::JumpCondition::True,
+                condition,
             })
         } else if let Ok(label) = try_parse_label_identifier(maybe_target, known_labels) {
             Ok(ir::Instruction::Jump {
                 target: ir::JumpTarget::Label(label),
-                condition: ir::JumpCondition::True,
+                condition,
             })
         } else {
-            Err(ParserError::MissingArgument {
-                command: String::from("jrcon"),
+            Err(ParserError::CouldNotParseArgument {
+                command: jump_instruction.get_original_string(),
                 arg_name: String::from("ConstantSigned12 or JumpLabel"),
+                arg_value: maybe_target.get_original_string(),
                 line_number,
             })
         }
     } else {
         Err(ParserError::MissingArgument {
-            command: String::from("jrcon"),
+            command: jump_instruction.get_original_string(),
             arg_name: String::from("ConstantSigned12 or JumpLabel"),
             line_number,
         })

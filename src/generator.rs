@@ -195,53 +195,40 @@ pub fn generator(ir: ir::IR) -> Vec<InstructionWord> {
                         instruction_word.set_unary_expression(unary_expression);
                         binary.push(instruction_word.clone());
                     }
-                    ir::Instruction::Jump {
-                        target: ir::JumpTarget::Constant(c),
-                        condition: ir::JumpCondition::True,
-                    } => {
-                        instruction_word.set_opcode(0x60);
-                        instruction_word.set_constant12(*c - 1);
-                        binary.push(instruction_word.clone());
-                    }
-                    ir::Instruction::Jump {
-                        target: ir::JumpTarget::Label(jump_label),
-                        condition: ir::JumpCondition::True,
-                    } => {
-                        let offset: u16 = jump_label.address.0 - (label.address.0 + (idx as u16));
-                        instruction_word.set_opcode(0x60);
-                        instruction_word.set_constant12(offset - 2);
-                        binary.push(instruction_word.clone());
-                    }
+                    // Absolute jumps
                     ir::Instruction::Jump {
                         target: ir::JumpTarget::Register(reg),
-                        condition: ir::JumpCondition::True,
+                        condition,
                     } => {
-                        instruction_word.set_opcode(0x40);
+                        let opcode = 0x50
+                            + match condition {
+                                ir::JumpCondition::True => 0,
+                                ir::JumpCondition::Zero => 1,
+                                ir::JumpCondition::NotZero => 2,
+                                ir::JumpCondition::Less => 3,
+                            };
+                        instruction_word.set_opcode(opcode);
                         instruction_word.set_op_a(reg.addr());
                         binary.push(instruction_word.clone());
                     }
-                    ir::Instruction::Jump {
-                        target: ir::JumpTarget::Register(reg),
-                        condition: ir::JumpCondition::Zero,
-                    } => {
-                        instruction_word.set_opcode(0x58);
-                        instruction_word.set_op_a(reg.addr());
-                        binary.push(instruction_word.clone());
-                    }
-                    ir::Instruction::Jump {
-                        target: ir::JumpTarget::Register(reg),
-                        condition: ir::JumpCondition::NotZero,
-                    } => {
-                        instruction_word.set_opcode(0x59);
-                        instruction_word.set_op_a(reg.addr());
-                        binary.push(instruction_word.clone());
-                    }
-                    ir::Instruction::Jump {
-                        target: ir::JumpTarget::Register(reg),
-                        condition: ir::JumpCondition::Less,
-                    } => {
-                        instruction_word.set_opcode(0x5A);
-                        instruction_word.set_op_a(reg.addr());
+                    // Relative Jumps
+                    ir::Instruction::Jump { target, condition } => {
+                        let opcode = 0x58
+                            + match condition {
+                                ir::JumpCondition::True => 0,
+                                ir::JumpCondition::Zero => 1,
+                                ir::JumpCondition::NotZero => 2,
+                                ir::JumpCondition::Less => 3,
+                            };
+                        instruction_word.set_opcode(opcode);
+                        let offset = match target {
+                            ir::JumpTarget::Label(jump_label) => {
+                                jump_label.address.0 - (label.address.0 + (idx as u16)) - 2
+                            }
+                            ir::JumpTarget::Constant(c) => *c - 1,
+                            _ => 0,
+                        };
+                        instruction_word.set_constant12(offset);
                         binary.push(instruction_word.clone());
                     }
                     ir::Instruction::Halt => {

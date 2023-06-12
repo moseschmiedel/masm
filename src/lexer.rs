@@ -39,10 +39,10 @@ impl Keyword {
     pub fn get_original_string(&self) -> String {
         match &self {
             Keyword::Mmenonic { name, .. } => name.clone(),
-            Keyword::RegisterAddress { name, .. } => name.clone(),
-            Keyword::Label { name, .. } => name.clone(),
+            Keyword::RegisterAddress { name, .. } => format!("%{}", name.clone()),
+            Keyword::Label { name, .. } => format!(".{}", name.clone()),
             Keyword::Constant { origin, .. } => origin.clone(),
-            Keyword::MemoryAddress { origin, .. } => origin.clone(),
+            Keyword::MemoryAddress { origin, .. } => format!("${}", origin.clone()),
         }
     }
 }
