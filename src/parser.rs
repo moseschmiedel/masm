@@ -158,6 +158,11 @@ fn try_parse_instruction(
                 keywords,
                 *line_number,
             )?)),
+            "add3" => Ok(ir::Instruction::Add3(try_parse_ternary_expression(
+                "add3",
+                keywords,
+                *line_number,
+            )?)),
             "addc" => Ok(ir::Instruction::AddWithCarry(try_parse_binary_expression(
                 "addc",
                 keywords,
@@ -461,6 +466,53 @@ fn try_parse_binary_statement(
         Err(ParserError::MissingArgument {
             command: String::from(instruction),
             arg_name: String::from("SourceRegisterA"),
+            line_number,
+        })
+    }
+}
+
+/// **instruction** `$TargetRegister` `$SourceRegisterA` `$SourceRegisterB` `$SourceRegisterC`
+fn try_parse_ternary_expression(
+    instruction: &str,
+    keywords: &mut Iter<Keyword>,
+    line_number: u16,
+) -> Result<ir::TernaryExpression, ParserError> {
+    if let Some(maybe_target_register) = keywords.next() {
+        let target = ir::Register::new(try_parse_register(maybe_target_register)?);
+        if let Some(maybe_source_a) = keywords.next() {
+            let source_a = ir::Register::new(try_parse_register(maybe_source_a)?);
+            if let Some(maybe_source_b) = keywords.next() {
+                let source_b = ir::Register::new(try_parse_register(maybe_source_b)?);
+                if let Some(maybe_source_c) = keywords.next() {
+                    let source_c = ir::Register::new(try_parse_register(maybe_source_c)?);
+                    Ok(ir::TernaryExpression::new(
+                        target, source_a, source_b, source_c,
+                    ))
+                } else {
+                    Err(ParserError::MissingArgument {
+                        command: String::from(instruction),
+                        arg_name: String::from("SourceRegisterC"),
+                        line_number,
+                    })
+                }
+            } else {
+                Err(ParserError::MissingArgument {
+                    command: String::from(instruction),
+                    arg_name: String::from("SourceRegisterB"),
+                    line_number,
+                })
+            }
+        } else {
+            Err(ParserError::MissingArgument {
+                command: String::from(instruction),
+                arg_name: String::from("SourceRegisterA"),
+                line_number,
+            })
+        }
+    } else {
+        Err(ParserError::MissingArgument {
+            command: String::from(instruction),
+            arg_name: String::from("TargetRegister"),
             line_number,
         })
     }

@@ -52,6 +52,7 @@ pub enum Instruction {
         condition: JumpCondition,
     },
     Add(BinaryExpression),
+    Add3(TernaryExpression),
     AddWithCarry(BinaryExpression),
     Subtract(BinaryExpression),
     SubtractWithCarry(BinaryExpression),
@@ -151,11 +152,27 @@ impl BinaryStatement {
 }
 
 #[derive(Debug)]
-struct TernaryExpression {
+pub struct TernaryExpression {
     pub target: Register,
     pub source_a: Register,
     pub source_b: Register,
     pub source_c: Register,
+}
+
+impl TernaryExpression {
+    pub fn new(
+        target: Register,
+        source_a: Register,
+        source_b: Register,
+        source_c: Register,
+    ) -> TernaryExpression {
+        TernaryExpression {
+            target,
+            source_a,
+            source_b,
+            source_c,
+        }
+    }
 }
 
 #[derive(Debug)]

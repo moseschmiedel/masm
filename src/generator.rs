@@ -64,6 +64,12 @@ impl InstructionWord {
         self.set_op_a(b_expr.source_a.addr());
         self.set_op_b(b_expr.source_b.addr());
     }
+    fn set_ternary_expression(&mut self, t_expr: &ir::TernaryExpression) {
+        self.set_target(t_expr.target.addr());
+        self.set_op_a(t_expr.source_a.addr());
+        self.set_op_b(t_expr.source_b.addr());
+        self.set_op_c(t_expr.source_c.addr());
+    }
 }
 
 impl fmt::Display for InstructionWord {
@@ -113,6 +119,11 @@ pub fn generator(ir: ir::IR) -> Vec<InstructionWord> {
                     ir::Instruction::Add(binary_expression) => {
                         instruction_word.set_opcode(0x0);
                         instruction_word.set_binary_expression(binary_expression);
+                        binary.push(instruction_word.clone());
+                    }
+                    ir::Instruction::Add3(ternary_expression) => {
+                        instruction_word.set_opcode(0x1);
+                        instruction_word.set_ternary_expression(ternary_expression);
                         binary.push(instruction_word.clone());
                     }
                     ir::Instruction::AddWithCarry(binary_expression) => {
