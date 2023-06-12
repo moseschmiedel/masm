@@ -11,11 +11,40 @@ pub trait LineNumber {
 
 #[derive(Debug)]
 pub enum Keyword {
-    Mmenonic { name: String, line_number: u16 },
-    RegisterAddress { name: String, line_number: u16 },
-    MemoryAddress { address: u16, line_number: u16 },
-    Constant { value: u16, line_number: u16 },
-    Label { name: String, line_number: u16 },
+    Mmenonic {
+        name: String,
+        line_number: u16,
+    },
+    RegisterAddress {
+        name: String,
+        line_number: u16,
+    },
+    MemoryAddress {
+        address: u16,
+        line_number: u16,
+        origin: String,
+    },
+    Constant {
+        value: u16,
+        line_number: u16,
+        origin: String,
+    },
+    Label {
+        name: String,
+        line_number: u16,
+    },
+}
+
+impl Keyword {
+    pub fn get_original_string(&self) -> String {
+        match &self {
+            Keyword::Mmenonic { name, .. } => name.clone(),
+            Keyword::RegisterAddress { name, .. } => format!("%{}", name.clone()),
+            Keyword::Label { name, .. } => format!(".{}", name.clone()),
+            Keyword::Constant { origin, .. } => origin.clone(),
+            Keyword::MemoryAddress { origin, .. } => format!("${}", origin.clone()),
+        }
+    }
 }
 
 impl LineNumber for Keyword {
@@ -155,12 +184,6 @@ pub fn lex_line(
 
         while let Some(word) = args.pop_front() {
             match word_type(word, line_number) {
-                Ok(Keyword::Label { name, line_number }) => {
-                    return Err(LexerError::LabelAfterCommand {
-                        label_name: name,
-                        line_number,
-                    })
-                }
                 Ok(Keyword::Mmenonic { name, line_number }) => {
                     return Err(LexerError::CommandAfterCommand {
                         command_name: name,
@@ -206,6 +229,7 @@ fn word_type(word: &str, line_number: u16) -> Result<Keyword, LexerError> {
             return Ok(Keyword::MemoryAddress {
                 address,
                 line_number,
+                origin: String::from(address_word),
             });
         } else {
             return Err(LexerError::CouldNotParseMemoryAddress {
@@ -266,6 +290,7 @@ fn word_type(word: &str, line_number: u16) -> Result<Keyword, LexerError> {
         return Ok(Keyword::Constant {
             value: parsed,
             line_number,
+            origin: String::from(word),
         });
     }
 

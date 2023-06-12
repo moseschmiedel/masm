@@ -50,7 +50,6 @@ pub enum Instruction {
     Jump {
         target: JumpTarget,
         condition: JumpCondition,
-        negate: bool,
     },
     Add(BinaryExpression),
     AddWithCarry(BinaryExpression),
@@ -177,5 +176,6 @@ pub enum JumpTarget {
 pub enum JumpCondition {
     True,
     Zero,
+    NotZero,
     Less,
 }

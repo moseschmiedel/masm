@@ -107,7 +107,7 @@ pub fn generator(ir: ir::IR) -> Vec<InstructionWord> {
 
     for label in labels {
         if let Some(instructions) = ir.instructions.get(label) {
-            for instr in instructions {
+            for (idx, instr) in instructions.iter().enumerate() {
                 instruction_word.clear();
                 match instr {
                     ir::Instruction::Add(binary_expression) => {
@@ -195,13 +195,40 @@ pub fn generator(ir: ir::IR) -> Vec<InstructionWord> {
                         instruction_word.set_unary_expression(unary_expression);
                         binary.push(instruction_word.clone());
                     }
+                    // Absolute jumps
                     ir::Instruction::Jump {
-                        target: ir::JumpTarget::Constant(c),
-                        condition: ir::JumpCondition::True,
-                        negate: false,
+                        target: ir::JumpTarget::Register(reg),
+                        condition,
                     } => {
-                        instruction_word.set_opcode(0x60);
-                        instruction_word.set_constant12(*c - 1);
+                        let opcode = 0x50
+                            + match condition {
+                                ir::JumpCondition::True => 0,
+                                ir::JumpCondition::Zero => 1,
+                                ir::JumpCondition::NotZero => 2,
+                                ir::JumpCondition::Less => 3,
+                            };
+                        instruction_word.set_opcode(opcode);
+                        instruction_word.set_op_a(reg.addr());
+                        binary.push(instruction_word.clone());
+                    }
+                    // Relative Jumps
+                    ir::Instruction::Jump { target, condition } => {
+                        let opcode = 0x58
+                            + match condition {
+                                ir::JumpCondition::True => 0,
+                                ir::JumpCondition::Zero => 1,
+                                ir::JumpCondition::NotZero => 2,
+                                ir::JumpCondition::Less => 3,
+                            };
+                        instruction_word.set_opcode(opcode);
+                        let offset = match target {
+                            ir::JumpTarget::Label(jump_label) => {
+                                jump_label.address.0 - (label.address.0 + (idx as u16)) - 2
+                            }
+                            ir::JumpTarget::Constant(c) => *c - 1,
+                            _ => 0,
+                        };
+                        instruction_word.set_constant12(offset);
                         binary.push(instruction_word.clone());
                     }
                     ir::Instruction::Halt => {
@@ -215,6 +242,10 @@ pub fn generator(ir: ir::IR) -> Vec<InstructionWord> {
                         instruction_word.set_load();
                         instruction_word.set_load_address(address.0);
                         instruction_word.set_constant16(*c);
+                        binary.push(instruction_word.clone());
+                    }
+                    ir::Instruction::Noop => {
+                        instruction_word.set_opcode(0x6c);
                         binary.push(instruction_word.clone());
                     }
                     _ => (),
