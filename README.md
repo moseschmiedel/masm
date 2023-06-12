@@ -2,7 +2,7 @@
 
 ## Installation
 ### Precompiled Binaries
-Download the latest precompiled binaries for your system (Architecture + OS) from `Releases` tab.
+Download the latest precompiled binaries for your system (Architecture + OS) from [Releases](https://gitlab.com/moseschmiedel/masm/-/releases) tab.
 
 ### Manual
 #### Requirements
