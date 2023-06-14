@@ -1,6 +1,4 @@
-.start
-    ldc %regA 0x42
-    tst %regA %regA
-    jr .start
-    jzr -2
-    nop
+    ldc %regF 0x7001
+    ldc %regH 0xAAAA
+    st %regF %regH
+    ld %regB %regF

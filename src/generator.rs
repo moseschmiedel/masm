@@ -255,6 +255,24 @@ pub fn generator(ir: ir::IR) -> Vec<InstructionWord> {
                         instruction_word.set_constant16(*c);
                         binary.push(instruction_word.clone());
                     }
+                    ir::Instruction::StoreRAM {
+                        address_register,
+                        data_register,
+                    } => {
+                        instruction_word.set_opcode(0x68);
+                        instruction_word.set_op_a(data_register.0);
+                        instruction_word.set_op_b(address_register.0);
+                        binary.push(instruction_word.clone());
+                    }
+                    ir::Instruction::Load {
+                        address,
+                        source: ir::LoadSource::RAM { address_register },
+                    } => {
+                        instruction_word.set_opcode(0x69);
+                        instruction_word.set_op_b(address_register.addr());
+                        instruction_word.set_target(address.0);
+                        binary.push(instruction_word.clone());
+                    }
                     ir::Instruction::Noop => {
                         instruction_word.set_opcode(0x6c);
                         binary.push(instruction_word.clone());

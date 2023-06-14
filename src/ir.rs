@@ -44,7 +44,10 @@ pub enum Instruction {
         address: RegisterAddress,
         source: LoadSource,
     },
-    StoreRAM,
+    StoreRAM {
+        address_register: RegisterAddress,
+        data_register: RegisterAddress,
+    },
     Halt,
     Noop,
     Jump {
@@ -79,7 +82,7 @@ pub struct Constant(pub u16);
 
 #[derive(Debug, Clone, Copy)]
 pub struct Register {
-    address: RegisterAddress,
+    pub address: RegisterAddress,
 }
 
 impl Register {
@@ -171,7 +174,7 @@ impl TernaryExpression {
 #[derive(Debug)]
 pub enum LoadSource {
     Constant(u16),
-    RAM { address: MemoryAddress },
+    RAM { address_register: Register },
     Pgm,
 }
 

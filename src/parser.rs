@@ -301,6 +301,22 @@ fn try_parse_instruction(
                 *line_number,
                 ir::JumpCondition::Less,
             ),
+            "st" => {
+                let u_expr = try_parse_unary_expression("st", keywords, *line_number)?;
+                Ok(ir::Instruction::StoreRAM {
+                    address_register: u_expr.target.address,
+                    data_register: u_expr.source_a.address,
+                })
+            }
+            "ld" => {
+                let u_expr = try_parse_unary_expression("ld", keywords, *line_number)?;
+                Ok(ir::Instruction::Load {
+                    address: u_expr.target.address,
+                    source: ir::LoadSource::RAM {
+                        address_register: u_expr.source_a,
+                    },
+                })
+            }
             "nop" => Ok(ir::Instruction::Noop),
             unknown => Err(ParserError::UnknownCommand {
                 command: unknown.to_string(),
