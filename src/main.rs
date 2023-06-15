@@ -48,13 +48,13 @@ fn main() {
     });
 
     if cli.debug_enable {
-        println!("{:?}", parsed.instructions.keys());
-        println!("{:?}", parsed.instructions.values());
+        println!("{:#?}", parsed.instructions.keys());
+        println!("{:#?}", parsed.instructions.values());
     }
 
     let binary = generator::generator(parsed);
     if cli.debug_enable {
-        println!("{:?}", binary);
+        println!("{:#?}", binary);
     }
     let output = File::create(&output_path).unwrap_or_else(|err| {
         eprintln!("Error: Could not open output file for writing:");

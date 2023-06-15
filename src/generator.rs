@@ -2,7 +2,7 @@ use std::fmt;
 
 use crate::ir;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct InstructionWord {
     buffer: [bool; 20],
 }
@@ -77,6 +77,17 @@ impl fmt::Display for InstructionWord {
         for nibble in self.buffer.chunks(4).rev() {
             write!(f, "{}", nibble_to_hex(nibble))?;
         }
+        Ok(())
+    }
+}
+
+impl fmt::Debug for InstructionWord {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "InstructionWord {{ buffer: 0x")?;
+        for nibble in self.buffer.chunks(4).rev() {
+            write!(f, "{}", nibble_to_hex(nibble))?;
+        }
+        write!(f, " }}")?;
         Ok(())
     }
 }
