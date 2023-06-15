@@ -105,8 +105,12 @@ release:
     description: ./CHANGELOG.md
     assets:
       links:
-        - url: $LINUX_ASSET_LINK
-        - url: $WIN_ASSET_LINK
+        - name: masm-linux-86_64-$CI_COMMIT_TAG
+          url: $PACKAGE_REGISTRY_URL/$CI_COMMIT_TAG/linux-x86_64/masm
+          type: package
+        - name: masm-win-86_64-$CI_COMMIT_TAG
+          url: $PACKAGE_REGISTRY_URL/$CI_COMMIT_TAG/win-x86_64/masm
+          type: package
   needs:
     - job: release-build-windows
       artifacts: true
