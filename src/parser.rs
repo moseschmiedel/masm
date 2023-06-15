@@ -646,22 +646,37 @@ fn try_parse_label_identifier(
 fn try_parse_register(keyword: &Keyword) -> Result<ir::RegisterAddress, ParserError> {
     match keyword {
         Keyword::RegisterAddress { name, line_number } => {
-            let address = match name.as_str() {
-                "regA" => Ok(0b000),
-                "regB" => Ok(0b001),
-                "regC" => Ok(0b010),
-                "regD" => Ok(0b011),
-                "regE" => Ok(0b100),
-                "regF" => Ok(0b101),
-                "regG" => Ok(0b110),
-                "regH" => Ok(0b111),
-                unknown => Err(ParserError::ExpectedFound {
-                    expected: String::from("valid register identifier"),
-                    found: unknown.to_string(),
+            if let Some(register_number) = name.strip_prefix("reg") {
+                if register_number.is_empty() {
+                    None
+                } else {
+                    let char = register_number.chars().next().unwrap();
+                    match register_number.chars().next().unwrap() {
+                        '0'..='7' => Some(char.to_digit(8).unwrap()),
+                        'A'..='H' => Some(u32::from(char) - u32::from('A')),
+                        _ => None,
+                    }
+                }
+                .ok_or(ParserError::ExpectedFound {
+                    expected: String::from("valid register number (0..7 | A..H)"),
+                    found: register_number.to_string(),
                     line_number: *line_number,
-                }),
-            }?;
-            Ok(ir::RegisterAddress(address))
+                })
+            } else {
+                Err(ParserError::ExpectedFound {
+                    expected: String::from("valid register identifier"),
+                    found: name.to_string(),
+                    line_number: *line_number,
+                })
+            }
+            .and_then(|address_u32| {
+                u8::try_from(address_u32).or(Err(ParserError::ExpectedFound {
+                    expected: String::from("valid register identifier"),
+                    found: name.to_string(),
+                    line_number: *line_number,
+                }))
+            })
+            .map(ir::RegisterAddress)
         }
         _ => Err(ParserError::ExpectedFound {
             expected: String::from("Keyword::RegisterAddress"),
