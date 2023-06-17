@@ -31,12 +31,81 @@ pub enum Keyword {
 }
 
 impl Keyword {
+    pub fn mmenonic(name: &str, line_number: u16) -> Keyword {
+        Keyword::Mmenonic {
+            name: name.to_string(),
+            line_number,
+        }
+    }
+    pub fn register_address(name: &str, line_number: u16) -> Keyword {
+        Keyword::RegisterAddress {
+            name: name.to_string(),
+            line_number,
+        }
+    }
+    pub fn constant(origin: &str, value: u16, line_number: u16) -> Keyword {
+        Keyword::Constant {
+            origin: origin.to_string(),
+            value,
+            line_number,
+        }
+    }
+    pub fn label(name: &str, line_number: u16) -> Keyword {
+        Keyword::Label {
+            name: name.to_string(),
+            line_number,
+        }
+    }
     pub fn get_original_string(&self) -> String {
         match &self {
             Keyword::Mmenonic { name, .. } => name.clone(),
             Keyword::RegisterAddress { name, .. } => format!("%{}", name.clone()),
             Keyword::Label { name, .. } => format!(".{}", name.clone()),
             Keyword::Constant { origin, .. } => origin.clone(),
+        }
+    }
+}
+
+impl PartialEq for Keyword {
+    fn eq(&self, other: &Keyword) -> bool {
+        match (self, other) {
+            (
+                Keyword::Label {
+                    name: name_self, ..
+                },
+                Keyword::Label {
+                    name: name_other, ..
+                },
+            ) => name_self == name_other,
+            (
+                Keyword::RegisterAddress {
+                    name: name_self, ..
+                },
+                Keyword::RegisterAddress {
+                    name: name_other, ..
+                },
+            ) => name_self == name_other,
+            (
+                Keyword::Mmenonic {
+                    name: name_self, ..
+                },
+                Keyword::Mmenonic {
+                    name: name_other, ..
+                },
+            ) => name_self == name_other,
+            (
+                Keyword::Constant {
+                    value: value_self,
+                    origin: origin_self,
+                    ..
+                },
+                Keyword::Constant {
+                    value: value_other,
+                    origin: origin_other,
+                    ..
+                },
+            ) => value_self == value_other && origin_self == origin_other,
+            _ => false,
         }
     }
 }
@@ -271,4 +340,125 @@ fn word_type(word: &str, line_number: u16) -> Result<Keyword, LexerError> {
         actual: String::from(word),
         line_number,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lex_all_instructions() {
+        let expected = vec![
+            Keyword::mmenonic("ldc", 0),
+            Keyword::register_address("reg0", 0),
+            Keyword::constant("0x00", 0, 0),
+            Keyword::mmenonic("ldc", 1),
+            Keyword::register_address("reg7", 1),
+            Keyword::constant("-0x01", 1u16.wrapping_neg(), 1),
+            Keyword::mmenonic("ldc", 2),
+            Keyword::register_address("regA", 2),
+            Keyword::constant("42", 42, 2),
+            Keyword::mmenonic("ldc", 3),
+            Keyword::register_address("regH", 3),
+            Keyword::constant("-1337", 1337u16.wrapping_neg(), 3),
+            Keyword::mmenonic("add", 4),
+            Keyword::register_address("reg0", 4),
+            Keyword::register_address("reg1", 4),
+            Keyword::register_address("reg2", 4),
+            Keyword::mmenonic("add3", 5),
+            Keyword::register_address("reg3", 5),
+            Keyword::register_address("reg4", 5),
+            Keyword::register_address("reg5", 5),
+            Keyword::register_address("reg6", 5),
+            Keyword::mmenonic("addc", 6),
+            Keyword::register_address("regB", 6),
+            Keyword::register_address("regC", 6),
+            Keyword::register_address("regD", 6),
+            Keyword::mmenonic("sub", 7),
+            Keyword::register_address("regE", 7),
+            Keyword::register_address("regF", 7),
+            Keyword::register_address("regG", 7),
+            Keyword::mmenonic("subc", 8),
+            Keyword::register_address("reg0", 8),
+            Keyword::register_address("reg0", 8),
+            Keyword::register_address("reg0", 8),
+            Keyword::mmenonic("inc", 9),
+            Keyword::register_address("reg0", 9),
+            Keyword::mmenonic("dec", 10),
+            Keyword::register_address("reg0", 10),
+            Keyword::mmenonic("mul", 11),
+            Keyword::register_address("reg0", 11),
+            Keyword::register_address("reg0", 11),
+            Keyword::register_address("reg0", 11),
+            Keyword::mmenonic("and", 12),
+            Keyword::register_address("reg0", 12),
+            Keyword::register_address("reg0", 12),
+            Keyword::register_address("reg0", 12),
+            Keyword::mmenonic("or", 13),
+            Keyword::register_address("reg0", 13),
+            Keyword::register_address("reg0", 13),
+            Keyword::register_address("reg0", 13),
+            Keyword::mmenonic("not", 14),
+            Keyword::register_address("reg0", 14),
+            Keyword::register_address("reg0", 14),
+            Keyword::mmenonic("neg", 15),
+            Keyword::register_address("reg0", 15),
+            Keyword::register_address("reg0", 15),
+            Keyword::mmenonic("xor", 16),
+            Keyword::register_address("reg0", 16),
+            Keyword::register_address("reg0", 16),
+            Keyword::register_address("reg0", 16),
+            Keyword::mmenonic("xnor", 17),
+            Keyword::register_address("reg0", 17),
+            Keyword::register_address("reg0", 17),
+            Keyword::register_address("reg0", 17),
+            Keyword::mmenonic("shl", 18),
+            Keyword::register_address("reg0", 18),
+            Keyword::register_address("reg0", 18),
+            Keyword::register_address("reg0", 18),
+            Keyword::mmenonic("shr", 19),
+            Keyword::register_address("reg0", 19),
+            Keyword::register_address("reg0", 19),
+            Keyword::register_address("reg0", 19),
+            Keyword::mmenonic("tst", 20),
+            Keyword::register_address("reg0", 20),
+            Keyword::register_address("reg0", 20),
+            Keyword::mmenonic("mov", 21),
+            Keyword::register_address("reg0", 21),
+            Keyword::register_address("reg0", 21),
+            Keyword::mmenonic("jmp", 22),
+            Keyword::register_address("reg0", 22),
+            Keyword::mmenonic("jz", 23),
+            Keyword::register_address("reg0", 23),
+            Keyword::mmenonic("jnz", 24),
+            Keyword::register_address("reg0", 24),
+            Keyword::mmenonic("jc", 25),
+            Keyword::register_address("reg0", 25),
+            Keyword::mmenonic("jrcon", 26),
+            Keyword::constant("2047", 2047, 26),
+            Keyword::mmenonic("jr", 27),
+            Keyword::constant("-2047", 2047u16.wrapping_neg(), 27),
+            Keyword::label("jump", 28),
+            Keyword::mmenonic("jzr", 29),
+            Keyword::label("jump", 29),
+            Keyword::mmenonic("jnzr", 30),
+            Keyword::constant("5", 5, 30),
+            Keyword::mmenonic("jcr", 31),
+            Keyword::constant("5", 5, 31),
+            Keyword::mmenonic("st", 32),
+            Keyword::register_address("reg0", 32),
+            Keyword::register_address("reg1", 32),
+            Keyword::mmenonic("ld", 33),
+            Keyword::register_address("reg5", 33),
+            Keyword::register_address("reg4", 33),
+            Keyword::mmenonic("nop", 34),
+            Keyword::mmenonic("hlt", 35),
+        ];
+
+        let found = lexer(Path::new("tests/all_instructions.s")).unwrap();
+
+        for (expected_keyword, found_keyword) in expected.iter().zip(found.iter()) {
+            assert_eq!(expected_keyword, found_keyword);
+        }
+    }
 }
