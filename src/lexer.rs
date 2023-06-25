@@ -219,8 +219,11 @@ pub fn lex_line(
     line: String,
     line_number: u16,
 ) -> Result<(), LexerError> {
+    let mut line = line;
     // starts with 4 spaces -> instruction
-    if let Some(line) = line.strip_prefix("    ") {
+    line = line.trim_end().to_string();
+    if line.starts_with([' ', '\t']) {
+        line = line.trim_start().to_string();
         let mut args: VecDeque<&str> = line.split(' ').collect();
         let command = args.pop_front().unwrap_or("");
         if command.is_empty() {
@@ -245,8 +248,8 @@ pub fn lex_line(
             };
         }
     }
-    // starts with . -> label
-    if let Some(label) = line.strip_prefix('.') {
+    // ends with : -> label
+    if let Some(label) = line.strip_suffix(':') {
         keywords.push(Keyword::Label {
             name: label.to_string(),
             line_number,
@@ -257,14 +260,6 @@ pub fn lex_line(
 }
 
 fn word_type(word: &str, line_number: u16) -> Result<Keyword, LexerError> {
-    // label
-    if let Some(label_name) = word.strip_prefix('.') {
-        return Ok(Keyword::Label {
-            name: String::from(label_name),
-            line_number,
-        });
-    }
-
     // register address
     if let Some(register_identifier) = word.strip_prefix('%') {
         return Ok(Keyword::RegisterAddress {
@@ -330,7 +325,7 @@ fn word_type(word: &str, line_number: u16) -> Result<Keyword, LexerError> {
 
     // mmenonic
     if word.chars().all(|c| c.is_ascii_alphanumeric()) {
-        return Ok(Keyword::Mmenonic {
+        return Ok(Keyword::Label {
             name: String::from(word),
             line_number,
         });

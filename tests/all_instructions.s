@@ -1,6 +1,6 @@
-    ldc %reg0 0x00
-    ldc %reg7 -0x01
-    ldc %regA 42
+ ldc %reg0 0x00
+  ldc %reg7 -0x01
+   ldc %regA 42
     ldc %regH -1337
     add %reg0 %reg1 %reg2
     add3 %reg3 %reg4 %reg5 %reg6
@@ -26,8 +26,8 @@
     jc %reg0
     jrcon 2047
     jr -2047
-.jump
-    jzr .jump
+jump:
+    jzr jump
     jnzr 5
     jcr 5
     st %reg0 %reg1
