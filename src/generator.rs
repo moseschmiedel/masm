@@ -115,15 +115,29 @@ fn set_bits(buffer: &mut [bool], int: u32) {
     }
 }
 
-pub fn generator(ir: ir::IR) -> Vec<InstructionWord> {
-    let mut labels: Vec<&ir::Label> = ir.instructions.keys().collect();
+pub enum GeneratorError {
+    UndefinedLabel { label_name: String },
+}
+
+impl fmt::Display for GeneratorError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            GeneratorError::UndefinedLabel { label_name } => {
+                write!(f, "Could not find definition of label '{}'", label_name,)
+            }
+        }
+    }
+}
+
+pub fn generator(ir: ir::IR) -> Result<Vec<InstructionWord>, GeneratorError> {
+    let mut labels: Vec<&ir::LabelDefinition> = ir.label_definitions.0.values().collect();
     labels.sort_by(|&a, &b| a.address.cmp(&b.address));
 
     let mut binary: Vec<InstructionWord> = Vec::with_capacity(32);
     let mut instruction_word = InstructionWord::new();
 
     for label in labels {
-        if let Some(instructions) = ir.instructions.get(label) {
+        if let Some(instructions) = ir.instructions.get(&label.clone().into()) {
             for (idx, instr) in instructions.iter().enumerate() {
                 instruction_word.clear();
                 match instr {
@@ -244,8 +258,15 @@ pub fn generator(ir: ir::IR) -> Vec<InstructionWord> {
                             };
                         instruction_word.set_opcode(opcode);
                         let offset = match target {
-                            ir::JumpTarget::Label(jump_label) => {
-                                jump_label.address.0 - (label.address.0 + (idx as u16)) - 2
+                            ir::JumpTarget::Label(jump_label_ref) => {
+                                if let Some(jump_label) = ir.label_definitions.0.get(jump_label_ref)
+                                {
+                                    jump_label.address.0 - (label.address.0 + (idx as u16)) - 1
+                                } else {
+                                    return Err(GeneratorError::UndefinedLabel {
+                                        label_name: jump_label_ref.name().to_string(),
+                                    });
+                                }
                             }
                             ir::JumpTarget::Constant(c) => *c - 1,
                             _ => 0,
@@ -294,5 +315,5 @@ pub fn generator(ir: ir::IR) -> Vec<InstructionWord> {
         }
     }
 
-    binary
+    Ok(binary)
 }

@@ -206,10 +206,17 @@ pub fn lexer(path: &Path) -> Result<Vec<Keyword>, Vec<LexerError>> {
         }
     }
 
-    lexed.push(Keyword::Mmenonic {
+    let hlt = Keyword::Mmenonic {
         name: String::from("hlt"),
         line_number,
-    });
+    };
+    if lexed
+        .last()
+        .map(|last_keyword| *last_keyword != hlt)
+        .is_some_and(|b| b)
+    {
+        lexed.push(hlt);
+    }
 
     Ok(lexed)
 }

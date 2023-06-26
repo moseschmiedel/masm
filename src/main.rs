@@ -52,7 +52,11 @@ fn main() {
         println!("{:#?}", parsed.instructions.values());
     }
 
-    let binary = generator::generator(parsed);
+    let binary = generator::generator(parsed).unwrap_or_else(|err| {
+        eprintln!("Generator: {err}");
+        process::exit(1);
+    });
+
     if cli.debug_enable {
         println!("{:#?}", binary);
     }

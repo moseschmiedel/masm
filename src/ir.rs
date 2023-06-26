@@ -4,38 +4,75 @@ use std::{
 };
 
 pub struct IR {
-    pub start_label: Label,
-    pub instructions: HashMap<Label, Vec<Instruction>>,
+    pub start_label: LabelReference,
+    pub label_definitions: LabelLUT,
+    pub instructions: HashMap<LabelReference, Vec<Instruction>>,
 }
 
 #[derive(Debug, Clone)]
-pub struct Label {
+pub struct LabelLUT(pub HashMap<LabelReference, LabelDefinition>);
+
+impl LabelLUT {
+    pub fn new() -> Self {
+        LabelLUT(HashMap::new())
+    }
+    pub fn with_capacity(capacity: usize) -> Self {
+        LabelLUT(HashMap::with_capacity(capacity))
+    }
+}
+
+impl Default for LabelLUT {
+    fn default() -> Self {
+        LabelLUT::new()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct LabelDefinition {
     pub name: String,
     pub address: MemoryAddress,
 }
 
-impl Label {
-    pub fn new(name: impl Into<String>, address: u16) -> Label {
-        Label {
+#[derive(Debug, Clone)]
+pub struct LabelReference(String);
+
+impl LabelDefinition {
+    pub fn new(name: impl Into<String>, address: u16) -> LabelDefinition {
+        LabelDefinition {
             name: name.into(),
             address: MemoryAddress(address),
         }
     }
 }
 
-impl Hash for Label {
+impl LabelReference {
+    pub fn new(name: impl Into<String>) -> Self {
+        LabelReference(name.into())
+    }
+    pub fn name(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<LabelDefinition> for LabelReference {
+    fn from(value: LabelDefinition) -> Self {
+        LabelReference(value.name)
+    }
+}
+
+impl Hash for LabelReference {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.name.hash(state);
+        self.name().hash(state);
     }
 }
 
-impl PartialEq for Label {
+impl PartialEq for LabelReference {
     fn eq(&self, other: &Self) -> bool {
-        self.name == other.name
+        self.name() == other.name()
     }
 }
 
-impl Eq for Label {}
+impl Eq for LabelReference {}
 
 #[derive(Debug)]
 pub enum Instruction {
@@ -182,7 +219,7 @@ pub enum LoadSource {
 pub enum JumpTarget {
     Constant(u16),
     Register(Register),
-    Label(Label),
+    Label(LabelReference),
 }
 
 #[derive(Debug)]

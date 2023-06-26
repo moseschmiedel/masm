@@ -6,6 +6,7 @@ use crate::lexer::{Keyword, LineNumber};
 
 pub enum ParserError {
     EndOfStream,
+    EmptyStream,
     UnknownCommand {
         command: String,
         line_number: u16,
@@ -13,10 +14,6 @@ pub enum ParserError {
     MissingArgument {
         command: String,
         arg_name: String,
-        line_number: u16,
-    },
-    UndefinedLabel {
-        label_name: String,
         line_number: u16,
     },
     CouldNotParseArgument {
@@ -36,6 +33,7 @@ impl std::fmt::Display for ParserError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self {
             ParserError::EndOfStream => write!(f, "Reached end of keyword stream"),
+            ParserError::EmptyStream => write!(f, "No keywords provided to Parser"),
             ParserError::UnknownCommand {
                 command,
                 line_number,
@@ -49,14 +47,6 @@ impl std::fmt::Display for ParserError {
                 f,
                 "Missing argument '{}' in command '{}' at line {}",
                 arg_name, command, line_number
-            ),
-            ParserError::UndefinedLabel {
-                label_name,
-                line_number,
-            } => write!(
-                f,
-                "Could not find definition of label '{}' used at line {}",
-                label_name, line_number
             ),
             ParserError::CouldNotParseArgument {
                 command,
@@ -90,46 +80,68 @@ impl std::fmt::Debug for ParserError {
 impl std::error::Error for ParserError {}
 
 pub fn parser(keywords: Vec<Keyword>) -> Result<ir::IR, ParserError> {
-    let mut known_labels: HashMap<String, ir::Label> = HashMap::with_capacity(10);
-    let mut parsed: HashMap<ir::Label, Vec<ir::Instruction>> = HashMap::with_capacity(10);
+    let mut known_labels = ir::LabelLUT::with_capacity(10);
+    let mut parsed: HashMap<ir::LabelReference, Vec<ir::Instruction>> = HashMap::with_capacity(10);
     let mut iter = keywords.iter();
-    let default_label = ir::Label::new("main", 0);
-    let mut last_label: Option<ir::Label> = None;
-    let mut start_label: Option<ir::Label> = None;
+    let default_label = ir::LabelDefinition::new("main", 0);
+
+    let start_label: ir::LabelDefinition;
     let mut instructions_since_label = 0;
+
+    if let Some(first_keyword) = iter.next() {
+        if let Ok(parsed_start_label) = try_parse_label_definition(first_keyword, 0, 0) {
+            start_label = parsed_start_label;
+        } else {
+            start_label = default_label;
+            match try_parse_instruction(first_keyword, &mut iter) {
+                Ok(instruction) => {
+                    if let Some(vec) = parsed.get_mut(&start_label.clone().into()) {
+                        vec.push(instruction);
+                    } else {
+                        parsed.insert(start_label.clone().into(), vec![instruction]);
+                    }
+                    instructions_since_label += 1;
+                }
+                Err(ParserError::EndOfStream) => {
+                    return Err(ParserError::EmptyStream);
+                }
+                Err(parser_error) => return Err(parser_error),
+            }
+        }
+    } else {
+        return Err(ParserError::EmptyStream);
+    }
+
+    known_labels
+        .0
+        .insert(start_label.clone().into(), start_label.clone());
+    let mut last_label: ir::LabelDefinition = start_label.clone();
 
     loop {
         if let Some(next_keyword) = iter.next() {
             if let Ok(label) = try_parse_label_definition(
                 next_keyword,
-                last_label.clone().map(|label| label.address.0).unwrap_or(0),
+                last_label.address.0,
                 instructions_since_label,
             ) {
-                parsed.insert(label.clone(), Vec::new());
-                if start_label.is_none() {
-                    start_label = Some(label.clone());
-                }
-                known_labels.insert(label.name.clone(), label.clone());
-                last_label = Some(label);
+                parsed.insert(label.clone().into(), Vec::new());
+                known_labels.0.insert(label.clone().into(), label.clone());
+                last_label = label;
                 instructions_since_label = 0;
             } else {
-                match try_parse_instruction(next_keyword, &mut iter, &known_labels) {
+                match try_parse_instruction(next_keyword, &mut iter) {
                     Ok(instruction) => {
-                        if let Some(vec) =
-                            parsed.get_mut(last_label.as_ref().unwrap_or(&default_label))
-                        {
+                        if let Some(vec) = parsed.get_mut(&last_label.clone().into()) {
                             vec.push(instruction);
                         } else {
-                            parsed.insert(
-                                last_label.clone().unwrap_or(default_label.clone()),
-                                vec![instruction],
-                            );
+                            parsed.insert(last_label.clone().into(), vec![instruction]);
                         }
                         instructions_since_label += 1;
                     }
                     Err(ParserError::EndOfStream) => {
                         return Ok(ir::IR {
-                            start_label: start_label.unwrap_or(default_label),
+                            start_label: start_label.into(),
+                            label_definitions: known_labels,
                             instructions: parsed,
                         })
                     }
@@ -138,7 +150,8 @@ pub fn parser(keywords: Vec<Keyword>) -> Result<ir::IR, ParserError> {
             }
         } else {
             return Ok(ir::IR {
-                start_label: start_label.unwrap_or(default_label),
+                start_label: start_label.into(),
+                label_definitions: known_labels,
                 instructions: parsed,
             });
         }
@@ -148,7 +161,6 @@ pub fn parser(keywords: Vec<Keyword>) -> Result<ir::IR, ParserError> {
 fn try_parse_instruction(
     next_keyword: &Keyword,
     keywords: &mut Iter<Keyword>,
-    known_labels: &HashMap<String, ir::Label>,
 ) -> Result<ir::Instruction, ParserError> {
     match next_keyword {
         Keyword::Mmenonic { name, line_number } => match name.as_str() {
@@ -269,35 +281,30 @@ fn try_parse_instruction(
             "jrcon" => try_parse_jr(
                 next_keyword,
                 keywords,
-                known_labels,
                 *line_number,
                 ir::JumpCondition::True,
             ),
             "jr" => try_parse_jr(
                 next_keyword,
                 keywords,
-                known_labels,
                 *line_number,
                 ir::JumpCondition::True,
             ),
             "jzr" => try_parse_jr(
                 next_keyword,
                 keywords,
-                known_labels,
                 *line_number,
                 ir::JumpCondition::Zero,
             ),
             "jnzr" => try_parse_jr(
                 next_keyword,
                 keywords,
-                known_labels,
                 *line_number,
                 ir::JumpCondition::NotZero,
             ),
             "jcr" => try_parse_jr(
                 next_keyword,
                 keywords,
-                known_labels,
                 *line_number,
                 ir::JumpCondition::Less,
             ),
@@ -560,7 +567,6 @@ fn try_parse_jmp(
 fn try_parse_jr(
     jump_instruction: &Keyword,
     keywords: &mut Iter<Keyword>,
-    known_labels: &HashMap<String, ir::Label>,
     line_number: u16,
     condition: ir::JumpCondition,
 ) -> Result<ir::Instruction, ParserError> {
@@ -570,7 +576,7 @@ fn try_parse_jr(
                 target: ir::JumpTarget::Constant(constant.0),
                 condition,
             })
-        } else if let Ok(label) = try_parse_label_identifier(maybe_target, known_labels) {
+        } else if let Ok(label) = try_parse_label_reference(maybe_target) {
             Ok(ir::Instruction::Jump {
                 target: ir::JumpTarget::Label(label),
                 condition,
@@ -607,9 +613,9 @@ fn try_parse_label_definition(
     keyword: &Keyword,
     last_label_address: u16,
     instructions_since_label: u16,
-) -> Result<ir::Label, ParserError> {
+) -> Result<ir::LabelDefinition, ParserError> {
     match keyword {
-        Keyword::Label { name, .. } => Ok(ir::Label::new(
+        Keyword::Label { name, .. } => Ok(ir::LabelDefinition::new(
             name,
             last_label_address + instructions_since_label,
         )),
@@ -621,20 +627,9 @@ fn try_parse_label_definition(
     }
 }
 
-fn try_parse_label_identifier(
-    keyword: &Keyword,
-    known_labels: &HashMap<String, ir::Label>,
-) -> Result<ir::Label, ParserError> {
+fn try_parse_label_reference(keyword: &Keyword) -> Result<ir::LabelReference, ParserError> {
     match &keyword {
-        Keyword::Label { name, line_number } => {
-            known_labels
-                .get(name)
-                .cloned()
-                .ok_or(ParserError::UndefinedLabel {
-                    label_name: name.clone(),
-                    line_number: *line_number,
-                })
-        }
+        Keyword::Label { name, .. } => Ok(ir::LabelReference::new(name)),
         _ => Err(ParserError::ExpectedFound {
             expected: String::from("Keyword::Label"),
             found: format!("{:?}", keyword),
