@@ -231,7 +231,7 @@ pub fn lex_line(
     line = line.trim_end().to_string();
     if line.starts_with([' ', '\t']) {
         line = line.trim_start().to_string();
-        let mut args: VecDeque<&str> = line.split(' ').collect();
+        let mut args: VecDeque<&str> = line.split_whitespace().collect();
         let command = args.pop_front().unwrap_or("");
         if command.is_empty() {
             return Ok(());
