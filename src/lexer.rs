@@ -212,8 +212,8 @@ pub fn lexer(path: &Path) -> Result<Vec<Keyword>, Vec<LexerError>> {
     };
     if lexed
         .last()
-        .map(|last_keyword| *last_keyword != hlt)
-        .is_some_and(|b| b)
+        .and_then(|last_keyword| if *last_keyword != hlt { Some(()) } else { None })
+        .is_some()
     {
         lexed.push(hlt);
     }
