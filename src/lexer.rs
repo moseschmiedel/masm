@@ -463,4 +463,20 @@ mod tests {
             assert_eq!(expected_keyword, found_keyword);
         }
     }
+
+    #[test]
+    fn whitespace() {
+        let expected = vec![
+            Keyword::mmenonic("ldc", 0),
+            Keyword::register_address("reg0", 0),
+            Keyword::constant("0x4", 4, 0),
+            Keyword::label("loop", 1),
+            Keyword::mmenonic("hlt", 2),
+        ];
+
+        let found = lexer(Path::new("tests/whitespace.s")).unwrap();
+        for (expected_keyword, found_keyword) in expected.iter().zip(found.iter()) {
+            assert_eq!(expected_keyword, found_keyword);
+        }
+    }
 }
