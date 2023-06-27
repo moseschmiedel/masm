@@ -261,7 +261,10 @@ pub fn generator(ir: ir::IR) -> Result<Vec<InstructionWord>, GeneratorError> {
                             ir::JumpTarget::Label(jump_label_ref) => {
                                 if let Some(jump_label) = ir.label_definitions.0.get(jump_label_ref)
                                 {
-                                    jump_label.address.0 - (label.address.0 + (idx as u16)) - 1
+                                    jump_label
+                                        .address
+                                        .0
+                                        .wrapping_sub(label.address.0 + (idx as u16) + 1)
                                 } else {
                                     return Err(GeneratorError::UndefinedLabel {
                                         label_name: jump_label_ref.name().to_string(),
