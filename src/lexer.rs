@@ -9,6 +9,8 @@ pub trait LineNumber {
     fn get_line_number(&self) -> u16;
 }
 
+/// Keywords are the Tokens, that the lexer creates from the
+/// input character stream
 #[derive(Debug)]
 pub enum Keyword {
     Mmenonic {
@@ -121,6 +123,7 @@ impl LineNumber for Keyword {
     }
 }
 
+///
 #[derive(Debug)]
 pub enum LexerError {
     InvalidRegisterIdentifier {
@@ -182,6 +185,9 @@ impl std::fmt::Display for LexerError {
     }
 }
 
+/// The lexer reads the provided assembler text file and separate
+/// it into Tokens (Keywords).
+/// Tokens are strings that are separated by whitespace.
 pub fn lexer(path: &Path) -> Result<Vec<Keyword>, Vec<LexerError>> {
     let mut errors: Vec<LexerError> = Vec::new();
     let file: File = File::open(path).map_err(|io_err| vec![LexerError::IoError(io_err)])?;

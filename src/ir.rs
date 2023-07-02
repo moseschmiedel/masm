@@ -3,6 +3,13 @@ use std::{
     hash::{Hash, Hasher},
 };
 
+/// Main struct with the parser result. `IR` stands for
+/// `intermediate representation` and consists of three components:
+///     - `start_label` - reference to the label at which the execution should be started
+///     - `label_definitions` - lookup-table for the labels, used for getting the address
+///         of the LabelDefinition referenced by a LabelReference
+///     - `instructions` - collection which stores for each label the associated instructions
+///         in a `Vec`
 pub struct IR {
     pub start_label: LabelReference,
     pub label_definitions: LabelLUT,
@@ -74,6 +81,8 @@ impl PartialEq for LabelReference {
 
 impl Eq for LabelReference {}
 
+/// Enum which represents all possible instructions
+/// and its metadata for the assembled language
 #[derive(Debug)]
 pub enum Instruction {
     Move(UnaryExpression),
