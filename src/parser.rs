@@ -680,3 +680,361 @@ fn try_parse_register(keyword: &Keyword) -> Result<ir::RegisterAddress, ParserEr
         }),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_all_instructions() {
+        let lexed = vec![
+            Keyword::mmenonic("ldc", 0),
+            Keyword::register_address("reg0", 0),
+            Keyword::constant("0x00", 0, 0),
+            Keyword::mmenonic("ldc", 1),
+            Keyword::register_address("reg7", 1),
+            Keyword::constant("-0x01", 1u16.wrapping_neg(), 1),
+            Keyword::mmenonic("ldc", 2),
+            Keyword::register_address("regA", 2),
+            Keyword::constant("42", 42, 2),
+            Keyword::mmenonic("ldc", 3),
+            Keyword::register_address("regH", 3),
+            Keyword::constant("-1337", 1337u16.wrapping_neg(), 3),
+            Keyword::mmenonic("add", 4),
+            Keyword::register_address("reg0", 4),
+            Keyword::register_address("reg1", 4),
+            Keyword::register_address("reg2", 4),
+            Keyword::mmenonic("add3", 5),
+            Keyword::register_address("reg3", 5),
+            Keyword::register_address("reg4", 5),
+            Keyword::register_address("reg5", 5),
+            Keyword::register_address("reg6", 5),
+            Keyword::mmenonic("addc", 6),
+            Keyword::register_address("regB", 6),
+            Keyword::register_address("regC", 6),
+            Keyword::register_address("regD", 6),
+            Keyword::mmenonic("sub", 7),
+            Keyword::register_address("regE", 7),
+            Keyword::register_address("regF", 7),
+            Keyword::register_address("regG", 7),
+            Keyword::mmenonic("subc", 8),
+            Keyword::register_address("reg0", 8),
+            Keyword::register_address("reg0", 8),
+            Keyword::register_address("reg0", 8),
+            Keyword::mmenonic("inc", 9),
+            Keyword::register_address("reg0", 9),
+            Keyword::mmenonic("dec", 10),
+            Keyword::register_address("reg0", 10),
+            Keyword::mmenonic("mul", 11),
+            Keyword::register_address("reg0", 11),
+            Keyword::register_address("reg0", 11),
+            Keyword::register_address("reg0", 11),
+            Keyword::mmenonic("and", 12),
+            Keyword::register_address("reg0", 12),
+            Keyword::register_address("reg0", 12),
+            Keyword::register_address("reg0", 12),
+            Keyword::mmenonic("or", 13),
+            Keyword::register_address("reg0", 13),
+            Keyword::register_address("reg0", 13),
+            Keyword::register_address("reg0", 13),
+            Keyword::mmenonic("not", 14),
+            Keyword::register_address("reg0", 14),
+            Keyword::register_address("reg0", 14),
+            Keyword::mmenonic("neg", 15),
+            Keyword::register_address("reg0", 15),
+            Keyword::register_address("reg0", 15),
+            Keyword::mmenonic("xor", 16),
+            Keyword::register_address("reg0", 16),
+            Keyword::register_address("reg0", 16),
+            Keyword::register_address("reg0", 16),
+            Keyword::mmenonic("xnor", 17),
+            Keyword::register_address("reg0", 17),
+            Keyword::register_address("reg0", 17),
+            Keyword::register_address("reg0", 17),
+            Keyword::mmenonic("shl", 18),
+            Keyword::register_address("reg0", 18),
+            Keyword::register_address("reg0", 18),
+            Keyword::register_address("reg0", 18),
+            Keyword::mmenonic("shr", 19),
+            Keyword::register_address("reg0", 19),
+            Keyword::register_address("reg0", 19),
+            Keyword::register_address("reg0", 19),
+            Keyword::mmenonic("tst", 20),
+            Keyword::register_address("reg0", 20),
+            Keyword::register_address("reg0", 20),
+            Keyword::mmenonic("mov", 21),
+            Keyword::register_address("reg0", 21),
+            Keyword::register_address("reg0", 21),
+            Keyword::mmenonic("jmp", 22),
+            Keyword::register_address("reg0", 22),
+            Keyword::mmenonic("jz", 23),
+            Keyword::register_address("reg0", 23),
+            Keyword::mmenonic("jnz", 24),
+            Keyword::register_address("reg0", 24),
+            Keyword::mmenonic("jc", 25),
+            Keyword::register_address("reg0", 25),
+            Keyword::mmenonic("jrcon", 26),
+            Keyword::constant("2047", 2047, 26),
+            Keyword::mmenonic("jr", 27),
+            Keyword::constant("-2047", 2047u16.wrapping_neg(), 27),
+            Keyword::label("jump", 28),
+            Keyword::mmenonic("jzr", 29),
+            Keyword::label("jump", 29),
+            Keyword::mmenonic("jnzr", 30),
+            Keyword::constant("5", 5, 30),
+            Keyword::mmenonic("jcr", 31),
+            Keyword::constant("5", 5, 31),
+            Keyword::mmenonic("st", 32),
+            Keyword::register_address("reg0", 32),
+            Keyword::register_address("reg1", 32),
+            Keyword::mmenonic("ld", 33),
+            Keyword::register_address("reg5", 33),
+            Keyword::register_address("reg4", 33),
+            Keyword::mmenonic("nop", 34),
+            Keyword::mmenonic("hlt", 35),
+        ];
+
+        let expected_instructions = vec![
+            (
+                ir::LabelReference::new("main"),
+                vec![
+                    ir::Instruction::Load {
+                        address: ir::RegisterAddress(0),
+                        source: ir::LoadSource::Constant(0x00),
+                    },
+                    ir::Instruction::Load {
+                        address: ir::RegisterAddress(7),
+                        source: ir::LoadSource::Constant(0x01u16.wrapping_neg()),
+                    },
+                    ir::Instruction::Load {
+                        address: ir::RegisterAddress(0),
+                        source: ir::LoadSource::Constant(42),
+                    },
+                    ir::Instruction::Load {
+                        address: ir::RegisterAddress(7),
+                        source: ir::LoadSource::Constant(1337u16.wrapping_neg()),
+                    },
+                    ir::Instruction::Add(ir::BinaryExpression {
+                        target: ir::Register::new(ir::RegisterAddress(0)),
+                        source_a: ir::Register::new(ir::RegisterAddress(1)),
+                        source_b: ir::Register::new(ir::RegisterAddress(2)),
+                    }),
+                    ir::Instruction::Add3(ir::TernaryExpression {
+                        target: ir::Register::new(ir::RegisterAddress(3)),
+                        source_a: ir::Register::new(ir::RegisterAddress(4)),
+                        source_b: ir::Register::new(ir::RegisterAddress(5)),
+                        source_c: ir::Register::new(ir::RegisterAddress(6)),
+                    }),
+                    ir::Instruction::AddWithCarry(ir::BinaryExpression {
+                        target: ir::Register::new(ir::RegisterAddress(1)),
+                        source_a: ir::Register::new(ir::RegisterAddress(2)),
+                        source_b: ir::Register::new(ir::RegisterAddress(3)),
+                    }),
+                    ir::Instruction::Subtract(ir::BinaryExpression {
+                        target: ir::Register::new(ir::RegisterAddress(4)),
+                        source_a: ir::Register::new(ir::RegisterAddress(5)),
+                        source_b: ir::Register::new(ir::RegisterAddress(6)),
+                    }),
+                    ir::Instruction::SubtractWithCarry(ir::BinaryExpression {
+                        target: ir::Register::new(ir::RegisterAddress(0)),
+                        source_a: ir::Register::new(ir::RegisterAddress(0)),
+                        source_b: ir::Register::new(ir::RegisterAddress(0)),
+                    }),
+                    ir::Instruction::Increment(ir::UnaryStatement {
+                        source_a: ir::Register::new(ir::RegisterAddress(0)),
+                    }),
+                    ir::Instruction::Decrement(ir::UnaryStatement {
+                        source_a: ir::Register::new(ir::RegisterAddress(0)),
+                    }),
+                    ir::Instruction::Multiply(ir::BinaryExpression {
+                        target: ir::Register::new(ir::RegisterAddress(0)),
+                        source_a: ir::Register::new(ir::RegisterAddress(0)),
+                        source_b: ir::Register::new(ir::RegisterAddress(0)),
+                    }),
+                    ir::Instruction::AND(ir::BinaryExpression {
+                        target: ir::Register::new(ir::RegisterAddress(0)),
+                        source_a: ir::Register::new(ir::RegisterAddress(0)),
+                        source_b: ir::Register::new(ir::RegisterAddress(0)),
+                    }),
+                    ir::Instruction::OR(ir::BinaryExpression {
+                        target: ir::Register::new(ir::RegisterAddress(0)),
+                        source_a: ir::Register::new(ir::RegisterAddress(0)),
+                        source_b: ir::Register::new(ir::RegisterAddress(0)),
+                    }),
+                    ir::Instruction::NOT(ir::UnaryExpression {
+                        target: ir::Register::new(ir::RegisterAddress(0)),
+                        source_a: ir::Register::new(ir::RegisterAddress(0)),
+                    }),
+                    ir::Instruction::Negate(ir::UnaryExpression {
+                        target: ir::Register::new(ir::RegisterAddress(0)),
+                        source_a: ir::Register::new(ir::RegisterAddress(0)),
+                    }),
+                    ir::Instruction::XOR(ir::BinaryExpression {
+                        target: ir::Register::new(ir::RegisterAddress(0)),
+                        source_a: ir::Register::new(ir::RegisterAddress(0)),
+                        source_b: ir::Register::new(ir::RegisterAddress(0)),
+                    }),
+                    ir::Instruction::XNOR(ir::BinaryExpression {
+                        target: ir::Register::new(ir::RegisterAddress(0)),
+                        source_a: ir::Register::new(ir::RegisterAddress(0)),
+                        source_b: ir::Register::new(ir::RegisterAddress(0)),
+                    }),
+                    ir::Instruction::ShiftLeft(ir::BinaryExpression {
+                        target: ir::Register::new(ir::RegisterAddress(0)),
+                        source_a: ir::Register::new(ir::RegisterAddress(0)),
+                        source_b: ir::Register::new(ir::RegisterAddress(0)),
+                    }),
+                    ir::Instruction::ShiftRight(ir::BinaryExpression {
+                        target: ir::Register::new(ir::RegisterAddress(0)),
+                        source_a: ir::Register::new(ir::RegisterAddress(0)),
+                        source_b: ir::Register::new(ir::RegisterAddress(0)),
+                    }),
+                    ir::Instruction::Test(ir::BinaryStatement {
+                        source_a: ir::Register::new(ir::RegisterAddress(0)),
+                        source_b: ir::Register::new(ir::RegisterAddress(0)),
+                    }),
+                    ir::Instruction::Move(ir::UnaryExpression {
+                        target: ir::Register::new(ir::RegisterAddress(0)),
+                        source_a: ir::Register::new(ir::RegisterAddress(0)),
+                    }),
+                    ir::Instruction::Jump {
+                        target: ir::JumpTarget::Register(ir::Register::new(ir::RegisterAddress(0))),
+                        condition: ir::JumpCondition::True,
+                    },
+                    ir::Instruction::Jump {
+                        target: ir::JumpTarget::Register(ir::Register::new(ir::RegisterAddress(0))),
+                        condition: ir::JumpCondition::Zero,
+                    },
+                    ir::Instruction::Jump {
+                        target: ir::JumpTarget::Register(ir::Register::new(ir::RegisterAddress(0))),
+                        condition: ir::JumpCondition::NotZero,
+                    },
+                    ir::Instruction::Jump {
+                        target: ir::JumpTarget::Register(ir::Register::new(ir::RegisterAddress(0))),
+                        condition: ir::JumpCondition::Less,
+                    },
+                    ir::Instruction::Jump {
+                        target: ir::JumpTarget::Constant(2047),
+                        condition: ir::JumpCondition::True,
+                    },
+                    ir::Instruction::Jump {
+                        target: ir::JumpTarget::Constant(2047u16.wrapping_neg()),
+                        condition: ir::JumpCondition::True,
+                    },
+                ],
+            ),
+            (
+                ir::LabelReference::new("jump"),
+                vec![
+                    ir::Instruction::Jump {
+                        target: ir::JumpTarget::Label(ir::LabelReference::new("jump")),
+                        condition: ir::JumpCondition::Zero,
+                    },
+                    ir::Instruction::Jump {
+                        target: ir::JumpTarget::Constant(5),
+                        condition: ir::JumpCondition::NotZero,
+                    },
+                    ir::Instruction::Jump {
+                        target: ir::JumpTarget::Constant(5),
+                        condition: ir::JumpCondition::Less,
+                    },
+                    ir::Instruction::StoreRAM {
+                        address_register: ir::RegisterAddress(0),
+                        data_register: ir::RegisterAddress(1),
+                    },
+                    ir::Instruction::Load {
+                        address: ir::RegisterAddress(5),
+                        source: ir::LoadSource::RAM {
+                            address_register: ir::Register::new(ir::RegisterAddress(4)),
+                        },
+                    },
+                    ir::Instruction::Noop,
+                    ir::Instruction::Halt,
+                ],
+            ),
+        ];
+        let expected_label_definitions = vec![
+            (
+                ir::LabelReference::new("main"),
+                ir::LabelDefinition::new("main", 0),
+            ),
+            (
+                ir::LabelReference::new("jump"),
+                ir::LabelDefinition::new("jump", 28),
+            ),
+        ];
+
+        let expected = ir::IR {
+            start_label: ir::LabelReference::new("main"),
+            label_definitions: ir::LabelLUT(expected_label_definitions.into_iter().collect()),
+            instructions: expected_instructions.into_iter().collect(),
+        };
+
+        let found = parser(lexed).unwrap();
+
+        assert_eq!(
+            expected.label_definitions.0.len(),
+            found.label_definitions.0.len(),
+            "found too few label definitions",
+        );
+        let mut exp_ld_vec = expected
+            .label_definitions
+            .0
+            .iter()
+            .collect::<Vec<(&ir::LabelReference, &ir::LabelDefinition)>>();
+
+        let mut found_ld_vec = found
+            .label_definitions
+            .0
+            .iter()
+            .collect::<Vec<(&ir::LabelReference, &ir::LabelDefinition)>>();
+
+        found_ld_vec.sort_by(|a, b| a.1.address.cmp(&b.1.address));
+        exp_ld_vec.sort_by(|a, b| a.1.address.cmp(&b.1.address));
+
+        for (expected_label_definition, found_label_definition) in
+            exp_ld_vec.iter().zip(found_ld_vec.iter())
+        {
+            assert_eq!(expected_label_definition.0, found_label_definition.0);
+            assert_eq!(
+                expected_label_definition.1.address, found_label_definition.1.address,
+                "label definitions addresses do not match",
+            );
+        }
+
+        assert_eq!(
+            expected.instructions.len(),
+            found.instructions.len(),
+            "found too few label references in instructions",
+        );
+
+        let mut exp_instr_keys = expected.instructions.keys().collect::<Vec<_>>();
+        let mut found_instr_keys = found.instructions.keys().collect::<Vec<_>>();
+
+        exp_instr_keys.sort_by(|a, b| a.name().cmp(b.name()));
+        found_instr_keys.sort_by(|a, b| a.name().cmp(b.name()));
+
+        for (expected_key_label, found_key_label) in
+            exp_instr_keys.iter().zip(found_instr_keys.iter())
+        {
+            assert_eq!(expected_key_label, found_key_label);
+            for (expected_instruction, found_instruction) in expected
+                .instructions
+                .get(expected_key_label)
+                .unwrap()
+                .iter()
+                .zip(found.instructions.get(found_key_label).unwrap().iter())
+            {
+                assert_eq!(
+                    expected_instruction, found_instruction,
+                    "instructions do not match"
+                );
+            }
+        }
+
+        assert_eq!(
+            expected.start_label, found.start_label,
+            "start label do not match"
+        );
+    }
+}

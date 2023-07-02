@@ -83,7 +83,7 @@ impl Eq for LabelReference {}
 
 /// Enum which represents all possible instructions
 /// and its metadata for the assembled language
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Instruction {
     Move(UnaryExpression),
     Load {
@@ -119,14 +119,14 @@ pub enum Instruction {
     Negate(UnaryExpression),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct RegisterAddress(pub u8);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MemoryAddress(pub u16);
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Constant(pub u16);
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Register {
     pub address: RegisterAddress,
 }
@@ -141,7 +141,7 @@ impl Register {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct UnaryExpression {
     pub target: Register,
     pub source_a: Register,
@@ -153,7 +153,7 @@ impl UnaryExpression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct UnaryStatement {
     pub source_a: Register,
 }
@@ -164,7 +164,7 @@ impl UnaryStatement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct BinaryExpression {
     pub target: Register,
     pub source_a: Register,
@@ -181,7 +181,7 @@ impl BinaryExpression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct BinaryStatement {
     pub source_a: Register,
     pub source_b: Register,
@@ -193,7 +193,7 @@ impl BinaryStatement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct TernaryExpression {
     pub target: Register,
     pub source_a: Register,
@@ -217,21 +217,21 @@ impl TernaryExpression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum LoadSource {
     Constant(u16),
     RAM { address_register: Register },
     Pgm,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum JumpTarget {
     Constant(u16),
     Register(Register),
     Label(LabelReference),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum JumpCondition {
     True,
     Zero,
