@@ -26,8 +26,8 @@
     jc %reg0
     jrcon 2047
     jr -2047
-jump:
-    jzr jump
+jump_0:
+    jzr jump_0
     jnzr 5
     jcr 5
     st %reg0 %reg1

@@ -449,9 +449,9 @@ mod tests {
             Keyword::constant("2047", 2047, 26),
             Keyword::mmenonic("jr", 27),
             Keyword::constant("-2047", 2047u16.wrapping_neg(), 27),
-            Keyword::label("jump", 28),
+            Keyword::label("jump_0", 28),
             Keyword::mmenonic("jzr", 29),
-            Keyword::label("jump", 29),
+            Keyword::label("jump_0", 29),
             Keyword::mmenonic("jnzr", 30),
             Keyword::constant("5", 5, 30),
             Keyword::mmenonic("jcr", 31),
@@ -484,6 +484,21 @@ mod tests {
         ];
 
         let found = lexer(Path::new("tests/whitespace.s")).unwrap();
+        for (expected_keyword, found_keyword) in expected.iter().zip(found.iter()) {
+            assert_eq!(expected_keyword, found_keyword);
+        }
+    }
+
+    #[test]
+    fn comments() {
+        let expected = vec![
+            Keyword::mmenonic("ldc", 0),
+            Keyword::register_address("reg0", 0),
+            Keyword::constant("0", 0, 0),
+            Keyword::mmenonic("hlt", 1),
+        ];
+
+        let found = lexer(Path::new("tests/comments.s")).unwrap();
         for (expected_keyword, found_keyword) in expected.iter().zip(found.iter()) {
             assert_eq!(expected_keyword, found_keyword);
         }
