@@ -339,8 +339,8 @@ fn word_type(word: &str, line_number: u16) -> Result<Keyword, LexerError> {
         });
     }
 
-    // mmenonic
-    if word.chars().all(|c| c.is_ascii_alphanumeric()) {
+    // label
+    if word.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
         return Ok(Keyword::Label {
             name: String::from(word),
             line_number,
