@@ -166,14 +166,14 @@ pub fn generator(ir: ir::IR) -> Result<Vec<InstructionWord>, GeneratorError> {
                         instruction_word.set_binary_expression(binary_expression);
                         binary.push(instruction_word.clone());
                     }
-                    ir::Instruction::Increment(unary_statement) => {
+                    ir::Instruction::Increment(unary_expression) => {
                         instruction_word.set_opcode(0x5);
-                        instruction_word.set_unary_statement(unary_statement);
+                        instruction_word.set_unary_expression(unary_expression);
                         binary.push(instruction_word.clone());
                     }
-                    ir::Instruction::Decrement(unary_statement) => {
+                    ir::Instruction::Decrement(unary_expression) => {
                         instruction_word.set_opcode(0x6);
-                        instruction_word.set_unary_statement(unary_statement);
+                        instruction_word.set_unary_expression(unary_expression);
                         binary.push(instruction_word.clone());
                     }
                     ir::Instruction::Multiply(binary_expression) => {

@@ -188,16 +188,20 @@ fn try_parse_instruction(
             "subc" => Ok(ir::Instruction::SubtractWithCarry(
                 try_parse_binary_expression("subc", keywords, *line_number)?,
             )),
-            "inc" => Ok(ir::Instruction::Increment(try_parse_unary_statement(
-                "inc",
-                keywords,
-                *line_number,
-            )?)),
-            "dec" => Ok(ir::Instruction::Decrement(try_parse_unary_statement(
-                "dec",
-                keywords,
-                *line_number,
-            )?)),
+            "inc" => {
+                let unary_statement = try_parse_unary_statement("inc", keywords, *line_number)?;
+                Ok(ir::Instruction::Increment(ir::UnaryExpression::new(
+                    unary_statement.source_a,
+                    unary_statement.source_a,
+                )))
+            }
+            "dec" => {
+                let unary_statement = try_parse_unary_statement("dec", keywords, *line_number)?;
+                Ok(ir::Instruction::Decrement(ir::UnaryExpression::new(
+                    unary_statement.source_a,
+                    unary_statement.source_a,
+                )))
+            }
             "mul" => Ok(ir::Instruction::Multiply(try_parse_binary_expression(
                 "mul",
                 keywords,
