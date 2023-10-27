@@ -86,6 +86,9 @@ impl Eq for LabelReference {}
 #[derive(Debug, PartialEq, Eq)]
 pub enum Instruction {
     Move(UnaryExpression),
+    Set32BitMode {
+        enable: Boolean,
+    },
     Load {
         address: RegisterAddress,
         source: LoadSource,
@@ -125,6 +128,8 @@ pub struct RegisterAddress(pub u8);
 pub struct MemoryAddress(pub u16);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Constant(pub u16);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Boolean(pub bool);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Register {

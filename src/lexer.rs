@@ -26,6 +26,11 @@ pub enum Keyword {
         line_number: u16,
         origin: String,
     },
+    Boolean {
+        value: bool,
+        line_number: u16,
+        origin: String,
+    },
     Label {
         name: String,
         line_number: u16,
@@ -52,6 +57,13 @@ impl Keyword {
             line_number,
         }
     }
+    pub fn boolean(origin: &str, value: bool, line_number: u16) -> Keyword {
+        Keyword::Boolean {
+            value,
+            line_number,
+            origin: origin.to_string(),
+        }
+    }
     pub fn label(name: &str, line_number: u16) -> Keyword {
         Keyword::Label {
             name: name.to_string(),
@@ -64,6 +76,7 @@ impl Keyword {
             Keyword::RegisterAddress { name, .. } => format!("%{}", name.clone()),
             Keyword::Label { name, .. } => format!(".{}", name.clone()),
             Keyword::Constant { origin, .. } => origin.clone(),
+            Keyword::Boolean { origin, .. } => origin.clone(),
         }
     }
 }
@@ -107,6 +120,18 @@ impl PartialEq for Keyword {
                     ..
                 },
             ) => value_self == value_other && origin_self == origin_other,
+            (
+                Keyword::Boolean {
+                    value: value_self,
+                    origin: origin_self,
+                    ..
+                },
+                Keyword::Boolean {
+                    value: value_other,
+                    origin: origin_other,
+                    ..
+                },
+            ) => value_self == value_other && origin_self == origin_other,
             _ => false,
         }
     }
@@ -118,6 +143,7 @@ impl LineNumber for Keyword {
             Keyword::Mmenonic { line_number, .. } => line_number,
             Keyword::RegisterAddress { line_number, .. } => line_number,
             Keyword::Constant { line_number, .. } => line_number,
+            Keyword::Boolean { line_number, .. } => line_number,
             Keyword::Label { line_number, .. } => line_number,
         }
     }
@@ -334,6 +360,28 @@ fn word_type(word: &str, line_number: u16) -> Result<Keyword, LexerError> {
     }) {
         return Ok(Keyword::Constant {
             value: parsed,
+            line_number,
+            origin: String::from(word),
+        });
+    }
+
+    // boolean
+    if ["true", "True", "TRUE"]
+        .iter()
+        .any(|&pattern| word == pattern)
+    {
+        return Ok(Keyword::Boolean {
+            value: true,
+            line_number,
+            origin: String::from(word),
+        });
+    }
+    if ["false", "False", "FALSE"]
+        .iter()
+        .any(|&pattern| word == pattern)
+    {
+        return Ok(Keyword::Boolean {
+            value: false,
             line_number,
             origin: String::from(word),
         });

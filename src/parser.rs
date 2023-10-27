@@ -257,6 +257,26 @@ fn try_parse_instruction(
                 keywords,
                 *line_number,
             )?)),
+            "s32b" => {
+                if let Some(maybe_bool) = keywords.next() {
+                    if let Ok(boolean) = try_parse_bool(maybe_bool) {
+                        Ok(ir::Instruction::Set32BitMode { enable: boolean })
+                    } else {
+                        Err(ParserError::CouldNotParseArgument {
+                            command: String::from("s32b"),
+                            arg_name: String::from("EnableBoolean"),
+                            arg_value: maybe_bool.get_original_string(),
+                            line_number: *line_number,
+                        })
+                    }
+                } else {
+                    Err(ParserError::MissingArgument {
+                        command: String::from("s32b"),
+                        arg_name: String::from("EnableBoolean"),
+                        line_number: *line_number,
+                    })
+                }
+            }
             "hlt" => Ok(ir::Instruction::Halt),
             "jmp" => try_parse_jmp(
                 next_keyword,
@@ -335,6 +355,14 @@ fn try_parse_instruction(
             }),
         },
         Keyword::Constant {
+            value,
+            line_number,
+            origin: _,
+        } => Err(ParserError::UnknownCommand {
+            command: format!("{}", value),
+            line_number: *line_number,
+        }),
+        Keyword::Boolean {
             value,
             line_number,
             origin: _,
@@ -602,6 +630,17 @@ fn try_parse_jr(
     }
 }
 
+fn try_parse_bool(keyword: &Keyword) -> Result<ir::Boolean, ParserError> {
+    match keyword {
+        &Keyword::Boolean { value, .. } => Ok(ir::Boolean(value)),
+        _ => Err(ParserError::ExpectedFound {
+            expected: String::from("Keyword::Boolean"),
+            found: format!("{:?}", keyword),
+            line_number: keyword.get_line_number(),
+        }),
+    }
+}
+
 fn try_parse_constant(keyword: &Keyword) -> Result<ir::Constant, ParserError> {
     match keyword {
         &Keyword::Constant { value, .. } => Ok(ir::Constant(value)),
@@ -844,11 +883,13 @@ mod tests {
                         source_a: ir::Register::new(ir::RegisterAddress(0)),
                         source_b: ir::Register::new(ir::RegisterAddress(0)),
                     }),
-                    ir::Instruction::Increment(ir::UnaryStatement {
+                    ir::Instruction::Increment(ir::UnaryExpression {
                         source_a: ir::Register::new(ir::RegisterAddress(0)),
+                        target: ir::Register::new(ir::RegisterAddress(0)),
                     }),
-                    ir::Instruction::Decrement(ir::UnaryStatement {
+                    ir::Instruction::Decrement(ir::UnaryExpression {
                         source_a: ir::Register::new(ir::RegisterAddress(0)),
+                        target: ir::Register::new(ir::RegisterAddress(0)),
                     }),
                     ir::Instruction::Multiply(ir::BinaryExpression {
                         target: ir::Register::new(ir::RegisterAddress(0)),

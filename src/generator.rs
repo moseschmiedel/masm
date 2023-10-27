@@ -231,6 +231,14 @@ pub fn generator(ir: ir::IR) -> Result<Vec<InstructionWord>, GeneratorError> {
                         instruction_word.set_unary_expression(unary_expression);
                         binary.push(instruction_word.clone());
                     }
+                    ir::Instruction::Set32BitMode { enable } => {
+                        instruction_word.set_opcode(0x4a);
+                        match enable {
+                            ir::Boolean(true) => instruction_word.set_constant12(0xff),
+                            ir::Boolean(false) => instruction_word.set_constant12(0x00),
+                        };
+                        binary.push(instruction_word.clone());
+                    }
                     // Absolute jumps
                     ir::Instruction::Jump {
                         target: ir::JumpTarget::Register(reg),
