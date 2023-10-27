@@ -287,6 +287,10 @@ pub fn generator(ir: ir::IR) -> Result<Vec<InstructionWord>, GeneratorError> {
                         instruction_word.set_constant12(offset);
                         binary.push(instruction_word.clone());
                     }
+                    ir::Instruction::Debug => {
+                        instruction_word.set_opcode(0x7e);
+                        binary.push(instruction_word.clone());
+                    }
                     ir::Instruction::Halt => {
                         instruction_word.set_opcode(0x7f);
                         binary.push(instruction_word.clone());

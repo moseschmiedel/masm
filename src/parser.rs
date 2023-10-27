@@ -278,6 +278,7 @@ fn try_parse_instruction(
                 }
             }
             "hlt" => Ok(ir::Instruction::Halt),
+            "dbg" => Ok(ir::Instruction::Debug),
             "jmp" => try_parse_jmp(
                 next_keyword,
                 keywords,

@@ -98,6 +98,7 @@ pub enum Instruction {
         data_register: RegisterAddress,
     },
     Halt,
+    Debug,
     Noop,
     Jump {
         target: JumpTarget,
