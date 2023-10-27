@@ -302,6 +302,12 @@ fn try_parse_instruction(
                 *line_number,
                 ir::JumpCondition::Less,
             ),
+            "jo" => try_parse_jmp(
+                next_keyword,
+                keywords,
+                *line_number,
+                ir::JumpCondition::Overflow,
+            ),
             "jrcon" => try_parse_jr(
                 next_keyword,
                 keywords,
@@ -331,6 +337,12 @@ fn try_parse_instruction(
                 keywords,
                 *line_number,
                 ir::JumpCondition::Less,
+            ),
+            "jor" => try_parse_jr(
+                next_keyword,
+                keywords,
+                *line_number,
+                ir::JumpCondition::Overflow,
             ),
             "st" => {
                 let u_expr = try_parse_unary_expression("st", keywords, *line_number)?;

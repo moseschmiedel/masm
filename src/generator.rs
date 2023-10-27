@@ -250,6 +250,7 @@ pub fn generator(ir: ir::IR) -> Result<Vec<InstructionWord>, GeneratorError> {
                                 ir::JumpCondition::Zero => 1,
                                 ir::JumpCondition::NotZero => 2,
                                 ir::JumpCondition::Less => 3,
+                                ir::JumpCondition::Overflow => 4,
                             };
                         instruction_word.set_opcode(opcode);
                         instruction_word.set_op_a(reg.addr());
@@ -263,6 +264,7 @@ pub fn generator(ir: ir::IR) -> Result<Vec<InstructionWord>, GeneratorError> {
                                 ir::JumpCondition::Zero => 1,
                                 ir::JumpCondition::NotZero => 2,
                                 ir::JumpCondition::Less => 3,
+                                ir::JumpCondition::Overflow => 4,
                             };
                         instruction_word.set_opcode(opcode);
                         let offset = match target {

@@ -242,4 +242,5 @@ pub enum JumpCondition {
     Zero,
     NotZero,
     Less,
+    Overflow,
 }
