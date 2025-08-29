@@ -1,5 +1,7 @@
 # MPMP - Assembler
 
+Assembler for a self-made simulated [CPU](https://github.com/moseschmiedel/cpu) as part of university course "Mikroprogrammierung und Mikroprozessoren" at HTWK Leipzig.
+
 ## Installation
 ### Precompiled Binaries
 Download the latest precompiled binaries for your system (Architecture + OS) from [Releases](https://gitlab.com/moseschmiedel/masm/-/releases) tab.
